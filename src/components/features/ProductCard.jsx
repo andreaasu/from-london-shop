@@ -5,20 +5,20 @@ import { formatCurrency } from "../../utils/formatCurrency";
 import Skeleton from "../common/Skeleton";
 import { useState } from "react";
 
-function isInStock(product) {
+function computeInStock(product) {
     if (!product) return false;
 
-    // 1) Prefer per-size stock if present
+    // Prefer per-size stock if present
     const stockObj = product.stock_by_size;
     if (stockObj && typeof stockObj === "object") {
         return Object.values(stockObj).some((n) => Number(n) > 0);
     }
 
-    // 2) Fallback booleans
+    // Fall back to boolean flags (supports both snake_case + camelCase)
     if (typeof product.inStock === "boolean") return product.inStock;
     if (typeof product.in_stock === "boolean") return product.in_stock;
 
-    // 3) Default
+    // Default to true if field missing (so we don't incorrectly mark out of stock)
     return true;
 }
 
@@ -38,13 +38,11 @@ export default function ProductCard({ product, isLoading }) {
 
     const isInList = isInWishlist(product.id);
 
-    // Image (no external placeholder)
     const image =
         (Array.isArray(product.images) ? product.images[0] : null) || "/placeholder.jpg";
 
-    const stockOk = isInStock(product);
+    const inStock = computeInStock(product);
 
-    // Optional colors display
     const colorsCount = Array.isArray(product.colors) ? product.colors.length : null;
 
     const handleImageError = (e) => {
@@ -90,7 +88,7 @@ export default function ProductCard({ product, isLoading }) {
                     </span>
                 )}
 
-                {!stockOk && (
+                {!inStock && (
                     <span className="absolute bottom-2 left-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded">
                         OUT OF STOCK
                     </span>
