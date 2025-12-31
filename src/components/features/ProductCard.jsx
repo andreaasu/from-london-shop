@@ -1,9 +1,26 @@
-import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
-import { useWishlist } from '../../context/WishlistContext';
-import { formatCurrency } from '../../utils/formatCurrency';
-import Skeleton from '../common/Skeleton';
-import { useState } from 'react';
+import { Link } from "react-router-dom";
+import { Heart } from "lucide-react";
+import { useWishlist } from "../../context/WishlistContext";
+import { formatCurrency } from "../../utils/formatCurrency";
+import Skeleton from "../common/Skeleton";
+import { useState } from "react";
+
+function isInStock(product) {
+    if (!product) return false;
+
+    // 1) Prefer per-size stock if present
+    const stockObj = product.stock_by_size;
+    if (stockObj && typeof stockObj === "object") {
+        return Object.values(stockObj).some((n) => Number(n) > 0);
+    }
+
+    // 2) Fallback booleans
+    if (typeof product.inStock === "boolean") return product.inStock;
+    if (typeof product.in_stock === "boolean") return product.in_stock;
+
+    // 3) Default
+    return true;
+}
 
 export default function ProductCard({ product, isLoading }) {
     const { isInWishlist, toggleWishlist } = useWishlist();
@@ -20,8 +37,20 @@ export default function ProductCard({ product, isLoading }) {
     }
 
     const isInList = isInWishlist(product.id);
-    // Default to first image
-    const image = product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image';
+
+    // Image (no external placeholder)
+    const image =
+        (Array.isArray(product.images) ? product.images[0] : null) || "/placeholder.jpg";
+
+    const stockOk = isInStock(product);
+
+    // Optional colors display
+    const colorsCount = Array.isArray(product.colors) ? product.colors.length : null;
+
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = "/placeholder.jpg";
+    };
 
     return (
         <div className="group relative flex flex-col">
@@ -30,11 +59,14 @@ export default function ProductCard({ product, isLoading }) {
                     <img
                         src={image}
                         alt={product.name}
-                        className={`h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        onError={handleImageError}
+                        className={`h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 ${isImageLoaded ? "opacity-100" : "opacity-0"
+                            }`}
                         onLoad={() => setIsImageLoaded(true)}
                         loading="lazy"
                     />
                 </Link>
+
                 {!isImageLoaded && <Skeleton className="absolute inset-0 w-full h-full" />}
 
                 <button
@@ -45,7 +77,11 @@ export default function ProductCard({ product, isLoading }) {
                     className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white text-gray-900 transition-colors shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
                     aria-label="Add to wishlist"
                 >
-                    <Heart size={18} fill={isInList ? "currentColor" : "none"} className={isInList ? "text-red-500" : ""} />
+                    <Heart
+                        size={18}
+                        fill={isInList ? "currentColor" : "none"}
+                        className={isInList ? "text-red-500" : ""}
+                    />
                 </button>
 
                 {product.oldPrice && (
@@ -53,7 +89,8 @@ export default function ProductCard({ product, isLoading }) {
                         SALE
                     </span>
                 )}
-                {!product.inStock && (
+
+                {!stockOk && (
                     <span className="absolute bottom-2 left-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded">
                         OUT OF STOCK
                     </span>
@@ -61,20 +98,32 @@ export default function ProductCard({ product, isLoading }) {
             </div>
 
             <div className="flex flex-col flex-1">
-                <Link to={`/product/${product.id}`} className="text-sm text-gray-700 hover:underline line-clamp-2" title={product.name}>
+                <Link
+                    to={`/product/${product.id}`}
+                    className="text-sm text-gray-700 hover:underline line-clamp-2"
+                    title={product.name}
+                >
                     {product.name}
                 </Link>
+
                 <div className="mt-1 flex items-center gap-2">
-                    <p className={`text-sm font-semibold ${product.oldPrice ? 'text-red-600' : 'text-gray-900'}`}>
+                    <p
+                        className={`text-sm font-semibold ${product.oldPrice ? "text-red-600" : "text-gray-900"
+                            }`}
+                    >
                         {formatCurrency(product.price)}
                     </p>
+
                     {product.oldPrice && (
                         <p className="text-xs text-gray-500 line-through">
                             {formatCurrency(product.oldPrice)}
                         </p>
                     )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{product.colors?.length} colours</p>
+
+                {colorsCount !== null && (
+                    <p className="text-xs text-gray-500 mt-1">{colorsCount} colours</p>
+                )}
             </div>
         </div>
     );
