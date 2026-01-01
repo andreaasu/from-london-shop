@@ -21,7 +21,7 @@ export default function HeroBanner() {
                 </p>
                 <div className="flex gap-4">
                     <Link
-                        to="/shop?collection=winter-collection"
+                        to="/shop"
                         className="bg-white text-black px-8 py-3 font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors"
                     >
                         Shop Winter
