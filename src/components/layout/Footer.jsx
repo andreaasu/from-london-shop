@@ -39,7 +39,7 @@ export default function Footer() {
                     <div className="flex space-x-4 mb-4">
                         <a href="#" className="hover:text-black"><Instagram size={20} /></a>
                         <a href="#" className="hover:text-black"><Facebook size={20} /></a>
-                        <a href="#" className="hover:text-black"><Twitter size={20} /></a>
+                        {/* <a href="#" className="hover:text-black"><Twitter size={20} /></a> */}
                     </div>
                     <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} From London. All rights reserved.</p>
                 </div>
