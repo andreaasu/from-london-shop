@@ -27,19 +27,12 @@ export default function Checkout() {
         setLoading(true);
 
         try {
-            const order = {
-                customer: formData,
-                items: cartItems,
-                subtotal,
-                shippingCost,
-                total
-            };
-            await orderService.createOrder(order);
+            const result = await orderService.placeOrder(formData, cartItems);
             clearCart();
-            navigate('/order-confirmation', { state: { orderId: order.id } });
+            navigate('/order-confirmation', { state: { orderId: result.orderId, total: result.total } });
         } catch (err) {
             console.error(err);
-            alert('Failed to place order. Please try again.');
+            alert(err.message || 'Failed to place order. Please try again.');
         } finally {
             setLoading(false);
         }

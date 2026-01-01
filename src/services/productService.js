@@ -9,24 +9,14 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function normalizeProduct(p) {
     if (!p) return p;
 
-    // Derive stock from stock_by_size if present (recommended)
-    const stockObj =
-        p.stock_by_size && typeof p.stock_by_size === "object" ? p.stock_by_size : null;
+    const stockObj = p.stock_by_size && typeof p.stock_by_size === "object" ? p.stock_by_size : {};
 
-    const hasSizeStock =
-        stockObj ? Object.values(stockObj).some((n) => Number(n) > 0) : null;
+    const hasAnyStock = Object.values(stockObj).some((n) => Number(n) > 0);
 
     return {
         ...p,
-
-        // ✅ single source of truth for UI
-        inStock:
-            hasSizeStock !== null
-                ? hasSizeStock
-                : (p.inStock ?? p.in_stock ?? false),
-
-        // Optional: keep a consistent shape if you want
-        stock_by_size: stockObj || p.stock_by_size || {},
+        inStock: hasAnyStock,
+        stock_by_size: stockObj,
     };
 }
 

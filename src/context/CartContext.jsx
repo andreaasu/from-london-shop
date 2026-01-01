@@ -22,21 +22,37 @@ export const CartProvider = ({ children }) => {
     }, [cartItems]);
 
     const addToCart = (product, size, color) => {
+        if (!size && Array.isArray(product.sizes) && product.sizes.length > 0) {
+            console.error('Size is required');
+            return;
+        }
+
+        const stockAvailable = product.stock_by_size?.[size] ?? 0;
+
         setCartItems(prev => {
-            // Check if item with same id, size, and color exists
             const existing = prev.find(item =>
                 item.id === product.id && item.selectedSize === size && item.selectedColor === color
             );
 
             if (existing) {
+                const newQty = existing.quantity + 1;
+                if (newQty > stockAvailable) {
+                    alert(`Only ${stockAvailable} items available in size ${size}`);
+                    return prev;
+                }
                 return prev.map(item =>
-                    item === existing ? { ...item, quantity: item.quantity + 1 } : item
+                    item === existing ? { ...item, quantity: newQty } : item
                 );
+            }
+
+            if (stockAvailable < 1) {
+                alert(`Out of stock for size ${size}`);
+                return prev;
             }
 
             return [...prev, { ...product, selectedSize: size, selectedColor: color, quantity: 1 }];
         });
-        setIsCartOpen(true); // Open cart/drawer feedback
+        setIsCartOpen(true);
     };
 
     const removeFromCart = (id, size, color) => {
@@ -49,6 +65,12 @@ export const CartProvider = ({ children }) => {
         setCartItems(prev => prev.map(item => {
             if (item.id === id && item.selectedSize === size && item.selectedColor === color) {
                 const newQty = item.quantity + delta;
+                const stockAvailable = item.stock_by_size?.[size] ?? 0;
+
+                if (newQty > stockAvailable) {
+                    alert(`Only ${stockAvailable} items available in size ${size}`);
+                    return item;
+                }
                 return newQty > 0 ? { ...item, quantity: newQty } : item;
             }
             return item;
