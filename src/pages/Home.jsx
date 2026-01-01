@@ -38,8 +38,8 @@ export default function Home() {
             {/* Another Section (e.g., Best Sellers or promo) */}
             <section className="bg-brand-blue/10 py-16 mt-8">
                 <div className="container mx-auto px-4 text-center">
-                    <h2 className="text-3xl font-black mb-4">WINTER CLEARANCE</h2>
-                    <p className="mb-8 text-lg">Up to 50% off selected styles.</p>
+                    <h2 className="text-3xl font-black mb-4">WINTER COLLECTION</h2>
+                    <p className="mb-8 text-lg">Select Your Style Now.</p>
                     <a href="/shop?collection=sale" className="bg-black text-white px-8 py-3 font-bold uppercase inline-block hover:opacity-80">Shop Sale</a>
                 </div>
             </section>
