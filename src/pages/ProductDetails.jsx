@@ -244,7 +244,7 @@ export default function ProductDetails() {
                         </div>
 
                         {/* USP */}
-                        <div className="space-y-3 pt-6 text-sm text-gray-600">
+                        {/* <div className="space-y-3 pt-6 text-sm text-gray-600">
                             <div className="flex items-center gap-3">
                                 <Truck size={20} />
                                 <span>Free delivery on orders over 1000 LE</span>
@@ -253,7 +253,7 @@ export default function ProductDetails() {
                                 <RefreshCw size={20} />
                                 <span>Free returns within 30 days</span>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Description */}
                         <div className="pt-6 border-t border-gray-100">
