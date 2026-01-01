@@ -18,6 +18,7 @@ export default function ProductDetails() {
     const [selectedSize, setSelectedSize] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
     const [activeImage, setActiveImage] = useState(null);
+    const [isAdded, setIsAdded] = useState(false);
 
     // Fetch product
     useEffect(() => {
@@ -81,6 +82,8 @@ export default function ProductDetails() {
         }
 
         addToCart(product, selectedSize, selectedColor);
+        setIsAdded(true);
+        setTimeout(() => setIsAdded(false), 2000);
     };
 
     const handleImageError = (e) => {
@@ -225,10 +228,13 @@ export default function ProductDetails() {
                         <div className="flex gap-4 pt-4 border-t border-gray-100">
                             <button
                                 onClick={handleAddToCart}
-                                className="flex-1 bg-brand-blue text-white py-4 font-bold uppercase tracking-wider hover:brightness-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={!safe.inStock}
+                                className={`flex-1 py-4 font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isAdded
+                                    ? "bg-green-600 text-white"
+                                    : "bg-brand-blue text-white hover:brightness-90"
+                                    }`}
+                                disabled={!safe.inStock || isAdded}
                             >
-                                {safe.inStock ? "Add to Bag" : "Out of Stock"}
+                                {safe.inStock ? (isAdded ? "✓ Added" : "Add to Bag") : "Out of Stock"}
                             </button>
 
                             <button
