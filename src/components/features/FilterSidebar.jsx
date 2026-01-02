@@ -1,7 +1,9 @@
+import { useSearchParams } from 'react-router-dom';
 import { useFilters } from '../../context/FilterContext';
 
 export default function FilterSidebar({ className }) {
     const { filters, updateFilter, resetFilters } = useFilters();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Safe Accessors
     const selectedGender = filters.gender || ''; // String default
@@ -33,7 +35,13 @@ export default function FilterSidebar({ className }) {
         <div className={`space-y-8 pb-10 ${className}`}>
             <div className="flex justify-between items-center">
                 <h3 className="font-bold text-lg">Filters</h3>
-                <button onClick={resetFilters} className="text-xs underline text-gray-500 hover:text-black">
+                <button
+                    onClick={() => {
+                        resetFilters();
+                        setSearchParams({});
+                    }}
+                    className="text-xs underline text-gray-500 hover:text-black"
+                >
                     Clear All
                 </button>
             </div>

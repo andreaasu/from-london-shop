@@ -13,7 +13,7 @@ export default function Shop() {
     const [loading, setLoading] = useState(true);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
-    const { filters, updateFilter, setAllFilters } = useFilters();
+    const { filters, updateFilter, setAllFilters, resetFilters } = useFilters();
 
     // Initial fetch
     useEffect(() => {
@@ -166,7 +166,10 @@ export default function Shop() {
                         <div className="py-20 text-center text-gray-500">
                             <p className="text-xl">No products found.</p>
                             <button
-                                onClick={() => { window.location.href = '/shop' }}
+                                onClick={() => {
+                                    resetFilters();
+                                    setSearchParams({});
+                                }}
                                 className="mt-4 underline"
                             >
                                 Clear Filters
