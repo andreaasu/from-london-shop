@@ -12,7 +12,7 @@ export default function FilterSidebar({ className }) {
 
     // Hardcoded options
     const categories = ['clothing', 'footwear', 'accessories'];
-    const genders = ['women', 'men', 'kids', 'baby', 'unisex'];
+    const genders = ['women', 'men', 'kids', 'baby'];
     const collections = ['new-in', 'basics', 'sale', 'winter-collection', 'summer-collection'];
 
     // For array-based filters (Category, Collection)
@@ -93,7 +93,7 @@ export default function FilterSidebar({ className }) {
             </div>
 
             {/* Collections (Multi Select/Array) */}
-            <div>
+            {/* <div>
                 <h4 className="font-semibold mb-3 text-sm uppercase tracking-wide">Collection</h4>
                 <div className="space-y-2">
                     {collections.map(c => (
@@ -108,7 +108,7 @@ export default function FilterSidebar({ className }) {
                         </label>
                     ))}
                 </div>
-            </div>
+            </div> */}
 
             {/* In Stock */}
             <div className="pt-4 border-t border-gray-100">
