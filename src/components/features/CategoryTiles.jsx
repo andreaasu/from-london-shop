@@ -6,7 +6,7 @@ const categories = [
     { name: 'Kids', image: 'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=kids' },
     { name: 'Baby', image: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=baby' },
     { name: 'Footwear', image: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=600', link: '/shop?category=footwear' },
-    { name: 'Accessories', image: 'https://images.unsplash.com/photo-1509319117193-518da7277202?auto=format&fit=crop&q=80&w=600', link: '/shop?category=accessories' },
+    { name: 'Accessories', image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&q=80&w=600', link: '/shop?category=accessories' },
 ];
 
 export default function CategoryTiles() {
