@@ -19,8 +19,8 @@ export default function Checkout() {
 
     if (cartItems.length === 0) return <Navigate to="/bag" />;
 
-    const shippingCost = subtotal > 1000 ? 0 : 50;
-    const total = subtotal + shippingCost;
+    // const shippingCost = subtotal > 1000 ? 0 : 50;
+    // const total = subtotal + shippingCost;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -89,14 +89,17 @@ export default function Checkout() {
                             </div>
                             <div className="flex justify-between text-gray-600">
                                 <span>Shipping</span>
-                                <span>{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}</span>
+                                <span>80 - 100 EGP (Based on location)</span>
                             </div>
                         </div>
 
-                        <div className="flex justify-between text-xl font-bold border-t border-gray-200 pt-4 mb-6">
+                        <div className="flex justify-between text-xl font-bold border-t border-gray-200 pt-4 mb-2">
                             <span>Total</span>
-                            <span>{formatCurrency(total)}</span>
+                            <span>{formatCurrency(subtotal)} + Delivery</span>
                         </div>
+                        <p className="text-sm text-gray-500 mb-6 text-right">
+                            *Delivery fees (80-100 EGP) will be added to your total upon delivery.
+                        </p>
 
                         <button
                             type="submit"
