@@ -31,7 +31,12 @@ export default function Checkout() {
             const result = await orderService.placeOrder(formData, cartItems);
             setOrderPlaced(true);
             navigate('/order-confirmation', {
-                state: { orderId: result.orderId, total: result.total },
+                state: {
+                    orderId: result.orderId,
+                    orderCode: result.orderCode,
+                    orderNo: result.orderNo,
+                    total: result.total
+                },
                 replace: true
             });
             clearCart();
