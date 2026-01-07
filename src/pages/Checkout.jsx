@@ -16,8 +16,9 @@ export default function Checkout() {
         notes: ''
     });
     const [loading, setLoading] = useState(false);
+    const [orderPlaced, setOrderPlaced] = useState(false);
 
-    if (cartItems.length === 0) return <Navigate to="/bag" />;
+    if (!orderPlaced && cartItems.length === 0) return <Navigate to="/bag" />;
 
     // const shippingCost = subtotal > 1000 ? 0 : 50;
     // const total = subtotal + shippingCost;
@@ -28,8 +29,12 @@ export default function Checkout() {
 
         try {
             const result = await orderService.placeOrder(formData, cartItems);
+            setOrderPlaced(true);
+            navigate('/order-confirmation', {
+                state: { orderId: result.orderId, total: result.total },
+                replace: true
+            });
             clearCart();
-            navigate('/order-confirmation', { state: { orderId: result.orderId, total: result.total } });
         } catch (err) {
             console.error(err);
             alert(err.message || 'Failed to place order. Please try again.');
@@ -57,6 +62,12 @@ export default function Checkout() {
                             <label className="block text-sm font-medium mb-1">Phone Number</label>
                             <input required name="phone" type="tel" onChange={handleChange} className="w-full border border-gray-300 p-2 rounded focus:ring-black focus:border-black" />
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Email</label>
+                            <input required name="email" type="email" onChange={handleChange} className="w-full border border-gray-300 p-2 rounded focus:ring-black focus:border-black" />
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium mb-1">City</label>
                             <input required name="city" onChange={handleChange} className="w-full border border-gray-300 p-2 rounded focus:ring-black focus:border-black" />

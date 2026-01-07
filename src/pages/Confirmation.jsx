@@ -1,9 +1,19 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 
 export default function Confirmation() {
     // We could pass order ID via state to show "Order #123"
-    // const { state } = useLocation();
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!location.state?.orderId) {
+            navigate('/', { replace: true });
+        }
+    }, [location, navigate]);
+
+    if (!location.state?.orderId) return null;
 
     return (
         <div className="container mx-auto px-4 py-20 text-center min-h-[60vh] flex flex-col items-center justify-center">
@@ -16,9 +26,12 @@ export default function Confirmation() {
                 <br />
                 Please have the exact amount ready when our courier arrives.
             </p>
-            <Link to="/" className="bg-black text-white px-8 py-3 font-bold uppercase hover:bg-gray-800">
+            <button
+                onClick={() => navigate('/', { replace: true })}
+                className="bg-black text-white px-8 py-3 font-bold uppercase hover:bg-gray-800"
+            >
                 Continue Shopping
-            </Link>
+            </button>
         </div>
     );
 }
