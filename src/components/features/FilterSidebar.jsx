@@ -66,7 +66,7 @@ export default function FilterSidebar({ className }) {
             </div>
 
             {/* Category (Multi Select/Array) */}
-            <div>
+            {/* <div>
                 <h4 className="font-semibold mb-3 text-sm uppercase tracking-wide">Category</h4>
                 <div className="space-y-2">
                     {categories.map(c => (
@@ -81,7 +81,7 @@ export default function FilterSidebar({ className }) {
                         </label>
                     ))}
                 </div>
-            </div>
+            </div> */}
 
             {/* Price Range */}
             <div>
