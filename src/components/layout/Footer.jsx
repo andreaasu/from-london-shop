@@ -17,8 +17,8 @@ export default function Footer() {
                     <ul className="space-y-2 text-sm">
                         <li><Link to="/contact" className="hover:underline">Contact Us</Link></li>
                         <li><Link to="/about" className="hover:underline">About Us</Link></li>
-                        <li><Link to="/faq" className="hover:underline">FAQs</Link></li>
-                        <li><Link to="/returns" className="hover:underline">Returns</Link></li>
+                        {/* <li><Link to="/faq" className="hover:underline">FAQs</Link></li> */}
+                        {/* <li><Link to="/returns" className="hover:underline">Returns</Link></li> */}
                     </ul>
                 </div>
 
@@ -35,10 +35,10 @@ export default function Footer() {
 
                 {/* Column 4 */}
                 <div>
-                    <h4 className="font-bold mb-4 text-black">Connect</h4>
+                    {/* <h4 className="font-bold mb-4 text-black">Connect</h4> */}
                     <div className="flex space-x-4 mb-4">
-                        <a href="#" className="hover:text-black"><Instagram size={20} /></a>
-                        <a href="#" className="hover:text-black"><Facebook size={20} /></a>
+                        {/* <a href="#" className="hover:text-black"><Instagram size={20} /></a> */}
+                        {/* <a href="#" className="hover:text-black"><Facebook size={20} /></a> */}
                         {/* <a href="#" className="hover:text-black"><Twitter size={20} /></a> */}
                     </div>
                     <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} From London. All rights reserved.</p>
