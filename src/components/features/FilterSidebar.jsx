@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import { useFilters } from '../../context/FilterContext';
 
-export default function FilterSidebar({ className }) {
+export default function FilterSidebar({ className, availableSizes = [] }) {
     const { filters, updateFilter, resetFilters } = useFilters();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -10,6 +10,7 @@ export default function FilterSidebar({ className }) {
     const selectedCategories = Array.isArray(filters.category) ? filters.category : [];
     const selectedCollections = Array.isArray(filters.collection) ? filters.collection : [];
     const selectedPriceRange = Array.isArray(filters.priceRange) && filters.priceRange.length === 2 ? filters.priceRange : [0, 100];
+    const selectedSizes = Array.isArray(filters.size) ? filters.size : [];
     const inStockOnly = !!filters.inStockOnly;
 
     // Hardcoded options
@@ -17,12 +18,13 @@ export default function FilterSidebar({ className }) {
     const genders = ['women', 'men', 'kids', 'baby'];
     const collections = ['new-in', 'basics', 'sale', 'winter-collection', 'summer-collection'];
 
-    // For array-based filters (Category, Collection)
+    // For array-based filters (Category, Collection, Size)
     const handleCheckboxChange = (group, value) => {
         // Determine safe current array based on group
         let current = [];
         if (group === 'category') current = selectedCategories;
         if (group === 'collection') current = selectedCollections;
+        if (group === 'size') current = selectedSizes;
 
         if (current.includes(value)) {
             updateFilter(group, current.filter(item => item !== value));
@@ -65,23 +67,28 @@ export default function FilterSidebar({ className }) {
                 </div>
             </div>
 
-            {/* Category (Multi Select/Array) */}
-            {/* <div>
-                <h4 className="font-semibold mb-3 text-sm uppercase tracking-wide">Category</h4>
-                <div className="space-y-2">
-                    {categories.map(c => (
-                        <label key={c} className="flex items-center space-x-2 cursor-pointer text-sm text-gray-700">
-                            <input
-                                type="checkbox"
-                                checked={selectedCategories.includes(c)}
-                                onChange={() => handleCheckboxChange('category', c)}
-                                className="rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
-                            />
-                            <span className="capitalize">{c}</span>
-                        </label>
-                    ))}
+            {/* Size (Multi Select/Array - Dynamic) */}
+            {availableSizes.length > 0 && (
+                <div>
+                    <h4 className="font-semibold mb-3 text-sm uppercase tracking-wide">Size</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                        {availableSizes.map(size => (
+                            <label key={size} className={`flex items-center justify-center border rounded py-2 cursor-pointer text-sm transition-all ${selectedSizes.includes(size)
+                                    ? 'bg-black text-white border-black'
+                                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                                }`}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedSizes.includes(size)}
+                                    onChange={() => handleCheckboxChange('size', size)}
+                                    className="sr-only"
+                                />
+                                <span>{size}</span>
+                            </label>
+                        ))}
+                    </div>
                 </div>
-            </div> */}
+            )}
 
             {/* Price Range */}
             <div>
@@ -99,24 +106,6 @@ export default function FilterSidebar({ className }) {
                     <span>{selectedPriceRange[1]} LE+</span>
                 </div>
             </div>
-
-            {/* Collections (Multi Select/Array) */}
-            {/* <div>
-                <h4 className="font-semibold mb-3 text-sm uppercase tracking-wide">Collection</h4>
-                <div className="space-y-2">
-                    {collections.map(c => (
-                        <label key={c} className="flex items-center space-x-2 cursor-pointer text-sm text-gray-700">
-                            <input
-                                type="checkbox"
-                                checked={selectedCollections.includes(c)}
-                                onChange={() => handleCheckboxChange('collection', c)}
-                                className="rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
-                            />
-                            <span className="capitalize">{c.replace('-', ' ')}</span>
-                        </label>
-                    ))}
-                </div>
-            </div> */}
 
             {/* In Stock */}
             <div className="pt-4 border-t border-gray-100">

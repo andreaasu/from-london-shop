@@ -2,7 +2,7 @@ import { X } from 'lucide-react';
 import FilterSidebar from './FilterSidebar';
 import { useEffect } from 'react';
 
-export default function MobileFilterDrawer({ isOpen, onClose }) {
+export default function MobileFilterDrawer({ isOpen, onClose, availableSizes = [] }) {
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -29,7 +29,7 @@ export default function MobileFilterDrawer({ isOpen, onClose }) {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
-                    <FilterSidebar className="" />
+                    <FilterSidebar className="" availableSizes={availableSizes} />
                 </div>
 
                 <div className="p-4 border-t border-gray-100 bg-white">
