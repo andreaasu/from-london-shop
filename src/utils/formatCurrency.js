@@ -1,7 +1,7 @@
 export const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
         style: 'decimal',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
     }).format(amount) + ' LE';
 };
