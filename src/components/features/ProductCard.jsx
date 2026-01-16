@@ -53,7 +53,7 @@ export default function ProductCard({ product, isLoading }) {
     return (
         <div className="group relative flex flex-col">
             <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-gray-100 mb-3">
-                <Link to={`/product/${product.id}`}>
+                <Link to={`/product/${product.sku}`}>
                     <img
                         src={image}
                         alt={product.name}
@@ -97,7 +97,7 @@ export default function ProductCard({ product, isLoading }) {
 
             <div className="flex flex-col flex-1">
                 <Link
-                    to={`/product/${product.id}`}
+                    to={`/product/${product.sku}`}
                     className="text-sm text-gray-700 hover:underline line-clamp-2"
                     title={product.name}
                 >

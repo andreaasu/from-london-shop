@@ -32,12 +32,12 @@ export const productService = {
         }
     },
 
-    async getProductById(id) {
+    async getProductById(idOrSku) {
         if (USE_SUPABASE && supabase) {
             const { data, error } = await supabase
                 .from("products")
                 .select("*")
-                .eq("id", id)
+                .eq('sku', idOrSku)
                 .single();
 
             if (error) return null;
