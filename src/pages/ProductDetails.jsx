@@ -58,8 +58,17 @@ export default function ProductDetails() {
     // Safe derived fields (never undefined)
     const safe = useMemo(() => {
         const images = Array.isArray(product?.images) ? product.images : [];
-        const sizes = Array.isArray(product?.sizes) ? product.sizes : [];
         const colors = Array.isArray(product?.colors) ? product.colors : [];
+
+        // Determine available sizes
+        let sizes = [];
+        if (product?.stock_by_size && typeof product.stock_by_size === 'object' && Object.keys(product.stock_by_size).length > 0) {
+            sizes = Object.entries(product.stock_by_size)
+                .filter(([_, qty]) => Number(qty) > 0)
+                .map(([size]) => size);
+        } else {
+            sizes = Array.isArray(product?.sizes) ? product.sizes : [];
+        }
 
         return {
             images: images.length ? images : ["/placeholder.jpg"],
@@ -69,6 +78,13 @@ export default function ProductDetails() {
             inStock: product?.inStock ?? product?.in_stock ?? true, // supports Supabase snake_case too
         };
     }, [product]);
+
+    // Reset selected size if it becomes unavailable
+    useEffect(() => {
+        if (selectedSize && !safe.sizes.includes(selectedSize)) {
+            setSelectedSize(null);
+        }
+    }, [safe.sizes, selectedSize]);
 
     const currentImage = activeImage || safe.images[0];
 
