@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
@@ -27,32 +26,34 @@ export default function ProductForm() {
         if (isEdit) {
             loadProduct();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const loadProduct = async () => {
         try {
             const product = await adminService.getProduct(id);
-            if (product) {
-                setFormData(product);
-            }
+            if (product) setFormData(product);
         } catch (err) {
             console.error(err);
             alert('Failed to load product');
         }
-    }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleCreateSize = () => {
         if (!sizeInput.size) return;
-        const newStock = { ...formData.stock_by_size, [sizeInput.size]: parseInt(sizeInput.qty) };
-        // Auto update in_stock
-        const hasStock = Object.values(newStock).some(q => q > 0);
+        const newStock = {
+            ...(formData.stock_by_size || {}),
+            [sizeInput.size]: parseInt(sizeInput.qty, 10)
+        };
 
-        setFormData(prev => ({
+        const hasStock = Object.values(newStock).some((q) => Number(q) > 0);
+
+        setFormData((prev) => ({
             ...prev,
             stock_by_size: newStock,
             in_stock: hasStock
@@ -61,10 +62,10 @@ export default function ProductForm() {
     };
 
     const removeSize = (size) => {
-        const newStock = { ...formData.stock_by_size };
+        const newStock = { ...(formData.stock_by_size || {}) };
         delete newStock[size];
-        const hasStock = Object.values(newStock).some(q => q > 0);
-        setFormData(prev => ({
+        const hasStock = Object.values(newStock).some((q) => Number(q) > 0);
+        setFormData((prev) => ({
             ...prev,
             stock_by_size: newStock,
             in_stock: hasStock
@@ -87,15 +88,12 @@ export default function ProductForm() {
 
             if (uploadError) throw uploadError;
 
-            const { data } = supabase.storage
-                .from('product-images')
-                .getPublicUrl(filePath);
+            const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
 
-            setFormData(prev => ({
+            setFormData((prev) => ({
                 ...prev,
                 images: [...(prev.images || []), data.publicUrl]
             }));
-
         } catch (error) {
             alert('Error uploading image: ' + error.message);
         } finally {
@@ -104,21 +102,34 @@ export default function ProductForm() {
     };
 
     const removeImage = (index) => {
-        setFormData(prev => ({
+        setFormData((prev) => ({
             ...prev,
-            images: prev.images.filter((_, i) => i !== index)
+            images: (prev.images || []).filter((_, i) => i !== index)
         }));
-    }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+
         try {
+            // Build payload safely (do NOT send id)
+            const payload = {
+                ...formData,
+                gender: (formData.gender || '').toLowerCase(),
+                price: Number(formData.price),
+                stock_by_size: formData.stock_by_size || {}
+            };
+
+            delete payload.id; // important: DB trigger generates it
+            if (Array.isArray(payload.images) && payload.images.length === 0) delete payload.images;
+
             if (isEdit) {
-                await adminService.updateProduct(id, formData);
+                await adminService.updateProduct(id, payload);
             } else {
-                await adminService.createProduct(formData);
+                await adminService.createProduct(payload);
             }
+
             navigate('/admin/products');
         } catch (err) {
             alert('Failed to save: ' + err.message);
@@ -135,22 +146,46 @@ export default function ProductForm() {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Name</label>
-                        <input name="name" value={formData.name} onChange={handleChange} className="w-full border p-2 rounded" required />
+                        <input
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            className="w-full border p-2 rounded"
+                            required
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium mb-1">Price (LE)</label>
-                        <input name="price" type="number" value={formData.price} onChange={handleChange} className="w-full border p-2 rounded" required />
+                        <input
+                            name="price"
+                            type="number"
+                            value={formData.price}
+                            onChange={handleChange}
+                            className="w-full border p-2 rounded"
+                            required
+                        />
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium mb-1">Description</label>
-                    <textarea name="description" value={formData.description} onChange={handleChange} className="w-full border p-2 rounded" rows="3" />
+                    <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleChange}
+                        className="w-full border p-2 rounded"
+                        rows="3"
+                    />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium mb-1">Gender</label>
-                    <select name="gender" value={formData.gender} onChange={handleChange} className="w-full border p-2 rounded">
+                    <select
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleChange}
+                        className="w-full border p-2 rounded"
+                    >
                         <option value="women">Women</option>
                         <option value="men">Men</option>
                         <option value="kids">Kids</option>
@@ -165,23 +200,39 @@ export default function ProductForm() {
                         <input
                             placeholder="Size (e.g. M)"
                             value={sizeInput.size}
-                            onChange={e => setSizeInput({ ...sizeInput, size: e.target.value })}
+                            onChange={(e) => setSizeInput({ ...sizeInput, size: e.target.value })}
                             className="border p-1 text-sm rounded w-20"
                         />
                         <input
                             type="number"
                             placeholder="Qty"
                             value={sizeInput.qty}
-                            onChange={e => setSizeInput({ ...sizeInput, qty: e.target.value })}
+                            onChange={(e) => setSizeInput({ ...sizeInput, qty: e.target.value })}
                             className="border p-1 text-sm rounded w-16"
                         />
-                        <button type="button" onClick={handleCreateSize} className="px-3 py-1 bg-gray-800 text-white text-xs rounded">Add</button>
+                        <button
+                            type="button"
+                            onClick={handleCreateSize}
+                            className="px-3 py-1 bg-gray-800 text-white text-xs rounded"
+                        >
+                            Add
+                        </button>
                     </div>
+
                     <div className="flex flex-wrap gap-2">
                         {Object.entries(formData.stock_by_size || {}).map(([size, qty]) => (
-                            <span key={size} className="bg-white border px-2 py-1 text-sm rounded flex items-center gap-2">
+                            <span
+                                key={size}
+                                className="bg-white border px-2 py-1 text-sm rounded flex items-center gap-2"
+                            >
                                 {size}: {qty}
-                                <button type="button" onClick={() => removeSize(size)} className="text-red-500 font-bold ml-1">×</button>
+                                <button
+                                    type="button"
+                                    onClick={() => removeSize(size)}
+                                    className="text-red-500 font-bold ml-1"
+                                >
+                                    ×
+                                </button>
                             </span>
                         ))}
                     </div>
@@ -190,7 +241,13 @@ export default function ProductForm() {
                 {/* Images */}
                 <div className="border p-4 rounded bg-gray-50">
                     <h3 className="text-sm font-bold mb-2">Images</h3>
-                    <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} className="mb-2 text-sm" />
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploading}
+                        className="mb-2 text-sm"
+                    />
                     {uploading && <div className="text-xs text-blue-600">Uploading...</div>}
 
                     <div className="flex gap-2 overflow-x-auto mt-2">
@@ -209,10 +266,13 @@ export default function ProductForm() {
                     </div>
                 </div>
 
-                <button type="submit" disabled={loading} className="w-full bg-black text-white p-3 rounded font-bold hover:bg-gray-800">
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-black text-white p-3 rounded font-bold hover:bg-gray-800"
+                >
                     {loading ? 'Saving...' : 'Save Product'}
                 </button>
-
             </form>
         </div>
     );
