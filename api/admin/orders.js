@@ -20,13 +20,13 @@ export default async function handler(req) {
                 .from('orders')
                 .select(`
                 *,
-      order_items (
+      order_items:order_items!order_items_order_id_fkey (
         id,
         product_id,
         size,
         qty,
         price,
-        product:products (
+        product:products!order_items_product_id_fkey (
           id,
           name,
           images
