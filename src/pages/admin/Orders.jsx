@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { adminService } from '../../services/adminService';
 
@@ -14,9 +13,10 @@ export default function Orders() {
     const loadOrders = async () => {
         try {
             const data = await adminService.getOrders();
-            setOrders(data);
+            setOrders(Array.isArray(data) ? data : []);
         } catch (error) {
-            // fail silently or show error
+            alert('Failed to load orders');
+            setOrders([]);
         } finally {
             setLoading(false);
         }
@@ -25,10 +25,29 @@ export default function Orders() {
     const updateStatus = async (id, status) => {
         try {
             await adminService.updateOrderStatus(id, status);
-            loadOrders(); // Refresh
+            loadOrders();
         } catch (err) {
             alert('Failed to update status');
         }
+    };
+
+    const getItemQty = (item) => item?.quantity ?? item?.qty ?? 1;
+    const getItemPrice = (item) => item?.unit_price ?? item?.price ?? 0;
+
+    const getItemProduct = (item) =>
+        item?.product || item?.products || item?.product_ref || null;
+
+    const getFirstImage = (item) => {
+        const prod = getItemProduct(item);
+        const imgs = prod?.images;
+        if (Array.isArray(imgs) && imgs.length > 0) return imgs[0];
+        if (typeof prod?.image === 'string' && prod.image) return prod.image;
+        return null;
+    };
+
+    const getProductName = (item) => {
+        const prod = getItemProduct(item);
+        return prod?.name || `Product ${item?.product_id || ''}`;
     };
 
     if (loading) return <div>Loading orders...</div>;
@@ -41,71 +60,131 @@ export default function Orders() {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Order ID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Customer
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Total
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Details
+                            </th>
                         </tr>
                     </thead>
+
                     <tbody className="divide-y divide-gray-200">
-                        {orders.map(order => (
-                            <>
-                                <tr key={order.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{order.id}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {new Date(order.created_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customer_name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{order.total} LE</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <select
-                                            value={order.status}
-                                            onChange={(e) => updateStatus(order.id, e.target.value)}
-                                            className="border rounded text-xs p-1"
-                                        >
-                                            <option value="pending">Pending</option>
-                                            <option value="confirmed">Confirmed</option>
-                                            <option value="shipped">Shipped</option>
-                                            <option value="delivered">Delivered</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <button
-                                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                                            className="text-blue-600 hover:underline"
-                                        >
-                                            {expandedOrder === order.id ? 'Hide' : 'View'}
-                                        </button>
-                                    </td>
-                                </tr>
-                                {expandedOrder === order.id && (
-                                    <tr className="bg-gray-50">
-                                        <td colSpan="6" className="px-6 py-4">
-                                            <div className="text-sm">
-                                                <h4 className="font-bold mb-2">Order Items:</h4>
-                                                <ul className="list-disc pl-5">
-                                                    {order.order_items?.map((item, i) => (
-                                                        <li key={i}>
-                                                            Product ID: {item.product_id} | Size: {item.size} | Qty: {item.quantity} | Price: {item.price}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                                <div className="mt-2 grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <strong>Phone:</strong> {order.phone}
+                        {orders.map((order) => (
+                            <tr key={order.id}>
+                                {/* Main row */}
+                                <td colSpan={6} className="p-0">
+                                    <div>
+                                        <div className="grid grid-cols-6 items-center hover:bg-gray-50">
+                                            <div className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                {order.id}
+                                            </div>
+
+                                            <div className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {order.created_at
+                                                    ? new Date(order.created_at).toLocaleDateString()
+                                                    : '—'}
+                                            </div>
+
+                                            <div className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {order.customer_name || 'N/A'}
+                                            </div>
+
+                                            <div className="px-6 py-4 whitespace-nowrap text-sm font-bold">
+                                                {order.total ?? '—'} LE
+                                            </div>
+
+                                            <div className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <select
+                                                    value={order.status || 'pending'}
+                                                    onChange={(e) => updateStatus(order.id, e.target.value)}
+                                                    className="border rounded text-xs p-1"
+                                                >
+                                                    <option value="pending">Pending</option>
+                                                    <option value="confirmed">Confirmed</option>
+                                                    <option value="shipped">Shipped</option>
+                                                    <option value="delivered">Delivered</option>
+                                                    <option value="cancelled">Cancelled</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <button
+                                                    onClick={() =>
+                                                        setExpandedOrder(expandedOrder === order.id ? null : order.id)
+                                                    }
+                                                    className="text-blue-600 hover:underline"
+                                                >
+                                                    {expandedOrder === order.id ? 'Hide' : 'View'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Expanded */}
+                                        {expandedOrder === order.id && (
+                                            <div className="bg-gray-50 px-6 py-4">
+                                                <div className="text-sm">
+                                                    <h4 className="font-bold mb-3">Order Items:</h4>
+
+                                                    <div className="space-y-3">
+                                                        {(order.order_items || []).map((item, i) => {
+                                                            const img = getFirstImage(item);
+                                                            const qty = getItemQty(item);
+                                                            const price = getItemPrice(item);
+                                                            const name = getProductName(item);
+
+                                                            return (
+                                                                <div
+                                                                    key={item.id || i}
+                                                                    className="flex items-center gap-3 bg-white border rounded p-3"
+                                                                >
+                                                                    <div className="w-14 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                                                        <img
+                                                                            src={img || 'https://via.placeholder.com/60x80?text=No+Image'}
+                                                                            alt={name}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex-1">
+                                                                        <div className="font-semibold">{name}</div>
+                                                                        <div className="text-gray-600">
+                                                                            Product ID: {item.product_id} | Size: {item.size || '—'} | Qty:{' '}
+                                                                            {qty} | Price: {price} LE
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                    <div>
-                                                        <strong>Address:</strong> {order.address}, {order.city}
+
+                                                    <div className="mt-4 grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <strong>Phone:</strong> {order.phone || '—'}
+                                                        </div>
+                                                        <div>
+                                                            <strong>Address:</strong> {order.address || '—'}
+                                                            {order.city ? `, ${order.city}` : ''}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
                         ))}
                     </tbody>
                 </table>
