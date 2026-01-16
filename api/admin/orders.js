@@ -18,21 +18,7 @@ export default async function handler(req) {
         if (req.method === 'GET') {
             let query = supabaseAdmin
                 .from('orders')
-                .select(`
-                *,
-      order_items:order_items!order_items_order_id_fkey (
-        id,
-        product_id,
-        size,
-        qty,
-        price,
-        product:products!order_items_product_id_fkey (
-          id,
-          name,
-          images
-        )
-      )
-    `)
+                .select(`*, order_items(*, products(id, name, images, price))`)
                 .order('created_at', { ascending: false });
 
             if (id) {
