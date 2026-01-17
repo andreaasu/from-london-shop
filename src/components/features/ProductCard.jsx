@@ -26,6 +26,7 @@ export default function ProductCard({ product, isLoading }) {
     const { isInWishlist, toggleWishlist } = useWishlist();
     const [isImageLoaded, setIsImageLoaded] = useState(false);
 
+
     if (isLoading) {
         return (
             <div className="flex flex-col space-y-3">
@@ -37,6 +38,7 @@ export default function ProductCard({ product, isLoading }) {
     }
 
     const isInList = isInWishlist(product.id);
+    const pid = product?.id || product?.sku;
 
     const image =
         (Array.isArray(product.images) ? product.images[0] : null) || "/placeholder.jpg";
@@ -53,7 +55,7 @@ export default function ProductCard({ product, isLoading }) {
     return (
         <div className="group relative flex flex-col">
             <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-gray-100 mb-3">
-                <Link to={`/product/${product.sku}`}>
+                <Link to={`/product/${encodeURIComponent(pid)}`}>
                     <img
                         src={image}
                         alt={product.name}
@@ -97,7 +99,7 @@ export default function ProductCard({ product, isLoading }) {
 
             <div className="flex flex-col flex-1">
                 <Link
-                    to={`/product/${product.sku}`}
+                    to={`/product/${encodeURIComponent(pid)}`}
                     className="text-sm text-gray-700 hover:underline line-clamp-2"
                     title={product.name}
                 >
