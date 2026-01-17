@@ -3,13 +3,13 @@ import { supabase } from "../lib/supabaseClient";
 
 const USE_SUPABASE = import.meta.env.VITE_USE_SUPABASE === "true";
 
-// Simulate network delay for mock data
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function normalizeProduct(p) {
     if (!p) return p;
 
-    const stockObj = p.stock_by_size && typeof p.stock_by_size === "object" ? p.stock_by_size : {};
+    const stockObj =
+        p.stock_by_size && typeof p.stock_by_size === "object" ? p.stock_by_size : {};
 
     const hasAnyStock = Object.values(stockObj).some((n) => Number(n) > 0);
 
@@ -33,18 +33,31 @@ export const productService = {
     },
 
     async getProductById(idOrSku) {
+        const key = decodeURIComponent(String(idOrSku || "")).trim();
+
         if (USE_SUPABASE && supabase) {
-            const { data, error } = await supabase
+            // 1) Try by id (works for your old products)
+            let { data, error } = await supabase
                 .from("products")
                 .select("*")
-                .eq('sku', idOrSku)
-                .single();
+                .eq("id", key)
+                .maybeSingle();
 
-            if (error) return null;
-            return normalizeProduct(data);
+            if (error) throw error;
+            if (data) return normalizeProduct(data);
+
+            // 2) Fallback: try by sku (works if you added sku later)
+            ({ data, error } = await supabase
+                .from("products")
+                .select("*")
+                .eq("sku", key)
+                .maybeSingle());
+
+            if (error) throw error;
+            return normalizeProduct(data); // could be null
         } else {
             await delay(300);
-            return allProducts.find((p) => String(p.id) === String(id));
+            return allProducts.find((p) => String(p.id) === key) || null;
         }
     },
 
