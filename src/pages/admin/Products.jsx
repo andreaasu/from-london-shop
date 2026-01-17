@@ -55,7 +55,8 @@ export default function Products() {
                 </div>
             )}
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
@@ -121,6 +122,63 @@ export default function Products() {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {products.map((product) => (
+                    <div key={product.id} className="bg-white p-4 rounded-lg shadow flex items-start space-x-4">
+                        {/* Image */}
+                        <div className="flex-shrink-0">
+                            {product.images?.[0] ? (
+                                <img
+                                    className="h-16 w-16 rounded-md object-cover"
+                                    src={product.images[0]}
+                                    alt=""
+                                />
+                            ) : (
+                                <div className="h-16 w-16 bg-gray-100 rounded-md flex items-center justify-center text-gray-400 text-xs">
+                                    No Img
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-medium text-gray-900 truncate">{product.name}</h3>
+                            <p className="text-sm text-gray-500 mt-1">{product.price} LE</p>
+                            <div className="mt-2">
+                                <span
+                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                        }`}
+                                >
+                                    {product.in_stock ? 'In Stock' : 'Out of Stock'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col space-y-2">
+                            <Link
+                                to={`/admin/products/${product.id}`}
+                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                            >
+                                Edit
+                            </Link>
+                            <button
+                                onClick={() => handleDelete(product.id)}
+                                className="text-red-600 hover:text-red-900 text-sm font-medium"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {!products.length && !errMsg && (
+                    <div className="text-center py-8 text-gray-500">
+                        No products found.
+                    </div>
+                )}
             </div>
         </div>
     );
