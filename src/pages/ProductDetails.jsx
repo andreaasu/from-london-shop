@@ -5,6 +5,7 @@ import { productService } from "../services/productService";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
 import { formatCurrency } from "../utils/formatCurrency";
+import ProductGallery from "../components/features/ProductGallery";
 
 export default function ProductDetails() {
     // Hooks (always top-level)
@@ -17,7 +18,7 @@ export default function ProductDetails() {
 
     const [selectedSize, setSelectedSize] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
-    const [activeImage, setActiveImage] = useState(null);
+    // activeImage state removed - handled in ProductGallery
     const [isAdded, setIsAdded] = useState(false);
 
     // Fetch product
@@ -38,9 +39,7 @@ export default function ProductDetails() {
                 const safeColors = Array.isArray(data?.colors) ? data.colors : [];
                 setSelectedColor(safeColors[0] ?? null);
 
-                const safeImages = Array.isArray(data?.images) ? data.images : [];
-                const firstImage = safeImages[0] || "/placeholder.jpg";
-                setActiveImage(firstImage);
+                // Image handling moved to ProductGallery component
 
                 setLoading(false);
             })
@@ -86,7 +85,7 @@ export default function ProductDetails() {
         }
     }, [safe.sizes, selectedSize]);
 
-    const currentImage = activeImage || safe.images[0];
+
 
     const handleAddToCart = () => {
         if (!product) return;
@@ -102,10 +101,7 @@ export default function ProductDetails() {
         setTimeout(() => setIsAdded(false), 2000);
     };
 
-    const handleImageError = (e) => {
-        e.target.onerror = null;
-        e.target.src = "/placeholder.jpg";
-    };
+
 
     // Rendering
     if (loading) {
@@ -128,39 +124,8 @@ export default function ProductDetails() {
         <div className="container mx-auto px-4 py-8 md:py-12">
             <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
                 {/* Gallery */}
-                <div className="space-y-4">
-                    <div className="aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden">
-                        <img
-                            src={currentImage}
-                            alt={product.name || "Product image"}
-                            className="w-full h-full object-cover transition-opacity duration-300"
-                            onError={handleImageError}
-                        />
-                    </div>
-
-                    {/* Thumbnails */}
-                    {safe.images.length > 1 && (
-                        <div className="flex gap-4 overflow-x-auto pb-2">
-                            {safe.images.map((img, idx) => (
-                                <button
-                                    key={`${img}-${idx}`}
-                                    onClick={() => setActiveImage(img)}
-                                    className={`w-20 h-20 flex-shrink-0 cursor-pointer border overflow-hidden rounded ${currentImage === img
-                                        ? "border-black ring-1 ring-black"
-                                        : "border-gray-200 hover:border-black"
-                                        }`}
-                                >
-                                    <img
-                                        src={img}
-                                        alt=""
-                                        className="w-full h-full object-cover"
-                                        onError={handleImageError}
-                                    />
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                {/* Gallery */}
+                <ProductGallery images={safe.images} productName={product.name} />
 
                 {/* Info */}
                 <div>
