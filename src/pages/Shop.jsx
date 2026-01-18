@@ -174,6 +174,10 @@ export default function Shop() {
 
             return true;
         }).sort((a, b) => {
+            const orderA = Number(a.display_order ?? 0);
+            const orderB = Number(b.display_order ?? 0);
+            if (orderA !== orderB) return orderB - orderA;
+
             const priceA = a.price || 0;
             const priceB = b.price || 0;
             switch (filters.sort) {
