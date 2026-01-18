@@ -25,12 +25,12 @@ export function Contact() {
                 {/* <p><strong>WhatsApp:</strong> <a href="#" className="underline text-brand-blue">Chat with us</a></p> */}
             </div>
 
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); alert('Message sent!'); }}>
+            {/* <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); alert('Message sent!'); }}>
                 <input placeholder="Your Name" className="w-full border p-3 rounded" required />
                 <input placeholder="Your Email" type="email" className="w-full border p-3 rounded" required />
                 <textarea placeholder="Message" rows="4" className="w-full border p-3 rounded" required></textarea>
                 <button className="bg-black text-white px-8 py-3 font-bold uppercase hover:bg-gray-800">Send Message</button>
-            </form>
+            </form> */}
         </div>
     );
 }
