@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom';
 
 const categories = [
     { name: 'Women', image: 'https://images.unsplash.com/photo-1525845859779-54d477ff291f?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=women' },
-    { name: 'Men', image: 'https://images.unsplash.com/photo-1516257984-b1b4d8c92305?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=men' },
+    { name: 'Men', image: 'https://shewbtfkjoupjqijcihu.supabase.co/storage/v1/object/public/product-images/shoaib-sheikh-xryRBWyk3bk-unsplash%20(1).jpg', link: '/shop?gender=men' },
     { name: 'Kids', image: 'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=kids' },
     { name: 'Baby', image: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=baby' },
-    { name: 'Footwear', image: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=600', link: '/shop?category=footwear' },
-    { name: 'Accessories', image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&q=80&w=600', link: '/shop?category=accessories' },
+    { name: 'Footwear', image: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=600', link: '/shop?gender=footwear' },
+    { name: 'Lingerie', image: 'https://shewbtfkjoupjqijcihu.supabase.co/storage/v1/object/public/product-images/lingarine.jpg', link: '/shop?gender=lingerie' },
 ];
 
 export default function CategoryTiles() {

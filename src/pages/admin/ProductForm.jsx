@@ -190,6 +190,8 @@ export default function ProductForm() {
                         <option value="men">Men</option>
                         <option value="kids">Kids</option>
                         <option value="baby">Baby</option>
+                        <option value="footwear">Footwear</option>
+                        <option value="lingerie">Lingerie</option>
                     </select>
                 </div>
 

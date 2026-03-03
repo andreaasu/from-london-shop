@@ -24,6 +24,8 @@ export default function Navbar() {
         { name: 'Men', path: '/shop?gender=men' },
         { name: 'Kids', path: '/shop?gender=kids' },
         { name: 'Baby', path: '/shop?gender=baby' },
+        { name: 'Footwear', path: '/shop?gender=footwear' },
+        { name: 'Lingerie', path: '/shop?gender=lingerie' },
         { name: 'Home', path: '/' },
     ];
 
