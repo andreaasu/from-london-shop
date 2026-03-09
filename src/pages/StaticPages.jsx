@@ -20,7 +20,7 @@ export function Contact() {
         <div className="container mx-auto px-4 py-12 max-w-2xl">
             <h1 className="text-3xl font-black uppercase mb-6">Contact Us</h1>
             <div className="space-y-4 mb-8">
-                <p><strong>Email:</strong> andreaaziz83@gmail.com</p>
+                {/*    <p><strong>Email:</strong> andreaaziz83@gmail.com</p> */}
                 <p><strong> Message me on WhatsApp:</strong> <a href="https://wa.me/201224982556" target="_blank" rel="noopener noreferrer" className="underline text-brand-blue">+20 1224982556</a></p>
                 {/* <p><strong>WhatsApp:</strong> <a href="#" className="underline text-brand-blue">Chat with us</a></p> */}
             </div>
