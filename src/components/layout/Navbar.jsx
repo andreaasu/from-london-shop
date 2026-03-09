@@ -44,7 +44,7 @@ export default function Navbar() {
 
                     {/* Logo */}
                     <Link to="/" className="text-2xl font-black tracking-tight uppercase flex-shrink-0">
-                        From London
+                        From London Rancy
                     </Link>
 
                     {/* Desktop Nav */}
