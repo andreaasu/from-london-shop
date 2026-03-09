@@ -12,6 +12,7 @@ const normalizeItems = (items) => {
     return [];
 };
 
+
 export const orderService = {
     async placeOrder(customer, items) {
         const normalizedItems = normalizeItems(items);
