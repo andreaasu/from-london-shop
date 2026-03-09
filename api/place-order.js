@@ -85,7 +85,9 @@ export default async function handler(req, res) {
             );
         }
 
-        await Promise.allSettled(fetchPromises);
+        //  await Promise.allSettled(fetchPromises);
+        const results = await Promise.allSettled(fetchPromises);
+        console.log("Email results:", JSON.stringify(results, null, 2));
 
         // 5. Return success to the client
         return res.status(200).json({ orderId, total });
