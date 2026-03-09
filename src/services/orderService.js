@@ -18,20 +18,31 @@ export const orderService = {
         if (!normalizedItems.length) throw new Error("Cart is empty");
         if (normalizedItems.some(x => !x.size)) throw new Error("Missing size");
 
-        if (USE_SUPABASE && supabase) {
-            const { data, error } = await supabase.rpc("place_order", {
-                customer: {
-                    name: customer.fullName ?? customer.name ?? "",
-                    phone: customer.phone ?? "",
-                    email: customer.email ?? null,
-                    city: customer.city ?? null,
-                    address: customer.address ?? null,
-                    notes: customer.notes ?? null
+        if (USE_SUPABASE) {
+            const response = await fetch('/api/place-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
                 },
-                items: normalizedItems
+                body: JSON.stringify({
+                    customer: {
+                        name: customer.fullName ?? customer.name ?? "",
+                        phone: customer.phone ?? "",
+                        email: customer.email ?? null,
+                        city: customer.city ?? null,
+                        address: customer.address ?? null,
+                        notes: customer.notes ?? null
+                    },
+                    items: normalizedItems
+                })
             });
 
-            if (error) throw new Error(error.message);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to place order (${response.status})`);
+            }
+
+            const data = await response.json();
             return data; // { orderId, total }
         } else {
             console.warn('Supabase not active. Order would be mock.');
