@@ -44,7 +44,8 @@ export default function Navbar() {
 
                     {/* Logo */}
                     <Link to="/" className="text-2xl font-black tracking-tight uppercase flex-shrink-0">
-                        MAGGIES STORE                    </Link>
+                        From London
+                    </Link>
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex space-x-8 font-medium">
