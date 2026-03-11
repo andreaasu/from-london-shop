@@ -137,9 +137,17 @@ export default function ProductDetails() {
                         {product.name}
                     </h1>
 
-                    <p className="text-2xl font-semibold mb-6">
-                        {formatCurrency(product.price)}
-                    </p>
+                    <div className="flex items-center gap-3 mb-6">
+                        <p className={`text-2xl font-semibold ${product.oldPrice ? "text-red-600" : "text-gray-900"}`}>
+                            {formatCurrency(product.price)}
+                        </p>
+
+                        {product.oldPrice && (
+                            <p className="text-lg text-gray-500 line-through">
+                                {formatCurrency(product.oldPrice)}
+                            </p>
+                        )}
+                    </div>
 
                     <div className="space-y-6">
                         {/* Colour (only if exists) */}

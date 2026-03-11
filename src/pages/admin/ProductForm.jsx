@@ -12,6 +12,7 @@ export default function ProductForm() {
     const [formData, setFormData] = useState({
         name: '',
         price: '',
+        oldPrice: '',
         description: '',
         gender: 'women', // default
         images: [],
@@ -113,11 +114,11 @@ export default function ProductForm() {
         setLoading(true);
 
         try {
-            // Build payload safely (do NOT send id)
             const payload = {
                 ...formData,
                 gender: (formData.gender || '').toLowerCase(),
                 price: Number(formData.price),
+                oldPrice: formData.oldPrice ? Number(formData.oldPrice) : null,
                 stock_by_size: formData.stock_by_size || {}
             };
 
@@ -143,7 +144,7 @@ export default function ProductForm() {
             <h2 className="text-2xl font-bold mb-6">{isEdit ? 'Edit Product' : 'New Product'}</h2>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Name</label>
                         <input
@@ -163,6 +164,16 @@ export default function ProductForm() {
                             onChange={handleChange}
                             className="w-full border p-2 rounded"
                             required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Old Price (LE) - Optional</label>
+                        <input
+                            name="oldPrice"
+                            type="number"
+                            value={formData.oldPrice || ''}
+                            onChange={handleChange}
+                            className="w-full border p-2 rounded"
                         />
                     </div>
                 </div>
