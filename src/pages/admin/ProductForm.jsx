@@ -12,7 +12,7 @@ export default function ProductForm() {
     const [formData, setFormData] = useState({
         name: '',
         price: '',
-        oldPrice: '',
+        oldprice: '',
         description: '',
         gender: 'women', // default
         images: [],
@@ -118,7 +118,7 @@ export default function ProductForm() {
                 ...formData,
                 gender: (formData.gender || '').toLowerCase(),
                 price: Number(formData.price),
-                oldPrice: formData.oldPrice ? Number(formData.oldPrice) : null,
+                oldprice: formData.oldprice ? Number(formData.oldprice) : null,
                 stock_by_size: formData.stock_by_size || {}
             };
 
@@ -169,9 +169,9 @@ export default function ProductForm() {
                     <div>
                         <label className="block text-sm font-medium mb-1">Old Price (LE) - Optional</label>
                         <input
-                            name="oldPrice"
+                            name="oldprice"
                             type="number"
-                            value={formData.oldPrice || ''}
+                            value={formData.oldprice || ''}
                             onChange={handleChange}
                             className="w-full border p-2 rounded"
                         />
