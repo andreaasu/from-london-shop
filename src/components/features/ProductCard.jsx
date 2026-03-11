@@ -84,7 +84,7 @@ export default function ProductCard({ product, isLoading }) {
                     />
                 </button>
 
-                {product.oldprice && (
+                {product.oldPrice && (
                     <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
                         SALE
                     </span>
@@ -108,15 +108,15 @@ export default function ProductCard({ product, isLoading }) {
 
                 <div className="mt-1 flex items-center gap-2">
                     <p
-                        className={`text-sm font-semibold ${product.oldprice ? "text-red-600" : "text-gray-900"
+                        className={`text-sm font-semibold ${product.oldPrice ? "text-red-600" : "text-gray-900"
                             }`}
                     >
                         {formatCurrency(product.price)}
                     </p>
 
-                    {product.oldprice && (
+                    {product.oldPrice && (
                         <p className="text-xs text-gray-500 line-through">
-                            {formatCurrency(product.oldprice)}
+                            {formatCurrency(product.oldPrice)}
                         </p>
                     )}
                 </div>

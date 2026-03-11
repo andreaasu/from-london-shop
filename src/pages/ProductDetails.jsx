@@ -138,13 +138,13 @@ export default function ProductDetails() {
                     </h1>
 
                     <div className="flex items-center gap-3 mb-6">
-                        <p className={`text-2xl font-semibold ${product.oldprice ? "text-red-600" : "text-gray-900"}`}>
+                        <p className={`text-2xl font-semibold ${product.oldPrice ? "text-red-600" : "text-gray-900"}`}>
                             {formatCurrency(product.price)}
                         </p>
 
-                        {product.oldprice && (
+                        {product.oldPrice && (
                             <p className="text-lg text-gray-500 line-through">
-                                {formatCurrency(product.oldprice)}
+                                {formatCurrency(product.oldPrice)}
                             </p>
                         )}
                     </div>
