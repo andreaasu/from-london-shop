@@ -174,18 +174,17 @@ export default function Shop() {
 
             return true;
         }).sort((a, b) => {
+            const priceA = a.price || 0;
+            const priceB = b.price || 0;
+
+            if (filters.sort === 'price-low-high') return priceA - priceB;
+            if (filters.sort === 'price-high-low') return priceB - priceA;
+
             const orderA = Number(a.display_order ?? 0);
             const orderB = Number(b.display_order ?? 0);
             if (orderA !== orderB) return orderB - orderA;
 
-            const priceA = a.price || 0;
-            const priceB = b.price || 0;
-            switch (filters.sort) {
-                case 'price-low-high': return priceA - priceB;
-                case 'price-high-low': return priceB - priceA;
-                case 'newest': return 0; // Assuming API returns newest first or we have date field
-                default: return 0;
-            }
+            return 0; // 'newest'
         });
     }, [products, filters, availableSizes]); // availableSizes dependency not strictly needed for logic but good for consistency
 
