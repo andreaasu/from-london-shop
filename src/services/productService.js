@@ -38,10 +38,10 @@ export const productService = {
         if (USE_SUPABASE && supabase) {
             const { data, error } = await supabase.from("products").select("*");
             if (error) throw error;
-            return (data || []).map(normalizeProduct);
+            return (data || []).map(normalizeProduct).filter(p => p.is_visible !== false);
         } else {
             await delay(500);
-            return allProducts;
+            return allProducts.filter(p => p.is_visible !== false);
         }
     },
 
@@ -53,11 +53,11 @@ export const productService = {
             // Try the most likely identifiers in order
             // 1) id (your real primary key like w-027)
             let p = await fetchOneBy("id", key);
-            if (p) return p;
+            if (p && p.is_visible !== false) return p;
 
             // 2) sku (if you added it later)
             p = await fetchOneBy("sku", key);
-            if (p) return p;
+            if (p && p.is_visible !== false) return p;
 
             // 3) code (ONLY if you have a "code" column; harmless if it doesn't exist? No.
             // If you DON'T have code column, comment this line out.
@@ -73,12 +73,12 @@ export const productService = {
 
     async getFeaturedProducts() {
         if (USE_SUPABASE && supabase) {
-            const { data, error } = await supabase.from("products").select("*").limit(8);
+            const { data, error } = await supabase.from("products").select("*");
             if (error) throw error;
-            return (data || []).map(normalizeProduct);
+            return (data || []).map(normalizeProduct).filter(p => p.is_visible !== false).slice(0, 8);
         } else {
             await delay(300);
-            return allProducts.slice(0, 8);
+            return allProducts.filter(p => p.is_visible !== false).slice(0, 8);
         }
     },
 };
