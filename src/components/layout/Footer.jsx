@@ -37,9 +37,22 @@ export default function Footer() {
                 <div>
                     {/* <h4 className="font-bold mb-4 text-black">Connect</h4> */}
                     <div className="flex space-x-4 mb-4">
-                        {<a href="https://www.instagram.com/therancystore/" className="hover:text-black"><Instagram size={20} /></a>}
-                        {<a href="https://www.facebook.com/profile.php?id=100071128491885" className="hover:text-black"><Facebook size={20} /></a>}
-                        {/* <a href="#" className="hover:text-black"><Twitter size={20} /></a> */}
+                        <a
+                            href="https://www.instagram.com/therancystore/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-black"
+                        >
+                            <Instagram size={20} />
+                        </a>
+                        <a
+                            href="https://www.facebook.com/profile.php?id=100071128491885"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-black"
+                        >
+                            <Facebook size={20} />
+                        </a>                        {/* <a href="#" className="hover:text-black"><Twitter size={20} /></a> */}
                     </div>
                     <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} From London. All rights reserved.</p>
                 </div>
