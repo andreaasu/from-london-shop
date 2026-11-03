@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Heart, Truck, RefreshCw } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Heart } from "lucide-react";
 import { productService } from "../services/productService";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
 import { formatCurrency } from "../utils/formatCurrency";
+import { sortSizes } from "../utils/sortSizes";
 import ProductGallery from "../components/features/ProductGallery";
 
 export default function ProductDetails() {
-    // Hooks (always top-level)
     const { id } = useParams();
+    return <ProductDetailsView key={id} id={id} />;
+}
+
+function ProductDetailsView({ id }) {
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
 
@@ -20,11 +24,19 @@ export default function ProductDetails() {
     const [selectedColor, setSelectedColor] = useState(null);
     // activeImage state removed - handled in ProductGallery
     const [isAdded, setIsAdded] = useState(false);
+    const [selectionError, setSelectionError] = useState('');
+    const [loadError, setLoadError] = useState(false);
+    const [retry, setRetry] = useState(0);
+
+    useEffect(() => {
+        if (!isAdded) return;
+        const timer = setTimeout(() => setIsAdded(false), 4000);
+        return () => clearTimeout(timer);
+    }, [isAdded]);
 
     // Fetch product
     useEffect(() => {
         let mounted = true;
-        setLoading(true);
 
         productService
             .getProductById(id)
@@ -44,6 +56,7 @@ export default function ProductDetails() {
                 setLoading(false);
             })
             .catch(() => {
+                if (mounted) setLoadError(true);
                 if (!mounted) return;
                 setProduct(null);
                 setLoading(false);
@@ -52,7 +65,7 @@ export default function ProductDetails() {
         return () => {
             mounted = false;
         };
-    }, [id]);
+    }, [id, retry]);
 
     // Safe derived fields (never undefined)
     const safe = useMemo(() => {
@@ -63,42 +76,38 @@ export default function ProductDetails() {
         let sizes = [];
         if (product?.stock_by_size && typeof product.stock_by_size === 'object' && Object.keys(product.stock_by_size).length > 0) {
             sizes = Object.entries(product.stock_by_size)
-                .filter(([_, qty]) => Number(qty) > 0)
+                .filter((entry) => Number(entry[1]) > 0)
                 .map(([size]) => size);
         } else {
             sizes = Array.isArray(product?.sizes) ? product.sizes : [];
         }
 
         return {
-            images: images.length ? images : ["/placeholder.jpg"],
-            sizes,
+            images: images.length ? images : ["/placeholder.svg"],
+            sizes: sortSizes(sizes),
             colors,
             brand: product?.brand || "From London",
             inStock: product?.inStock ?? product?.in_stock ?? true, // supports Supabase snake_case too
         };
     }, [product]);
 
-    // Reset selected size if it becomes unavailable
-    useEffect(() => {
-        if (selectedSize && !safe.sizes.includes(selectedSize)) {
-            setSelectedSize(null);
-        }
-    }, [safe.sizes, selectedSize]);
-
-
-
     const handleAddToCart = () => {
         if (!product) return;
 
         // if product has sizes, enforce choosing one
         if (safe.sizes.length > 0 && !selectedSize) {
-            alert("Please select a size");
+            setSelectionError("Please select a size before adding this item to your bag.");
             return;
         }
 
-        addToCart(product, selectedSize, selectedColor);
+        const result = addToCart(product, selectedSize, selectedColor);
+        if (!result.success) {
+            setSelectionError(result.error);
+            return;
+        }
+        setSelectionError('');
         setIsAdded(true);
-        setTimeout(() => setIsAdded(false), 2000);
+
     };
 
 
@@ -115,7 +124,9 @@ export default function ProductDetails() {
     if (!product) {
         return (
             <div className="container mx-auto px-4 py-12 text-center">
-                Product not found
+                <h1 className="text-2xl font-bold mb-4">{loadError ? "We couldn't load this product" : "Product not found"}</h1>
+                {loadError && <button className="underline mr-4" onClick={() => { setLoading(true); setLoadError(false); setRetry(value => value + 1); }}>Try again</button>}
+                <Link to="/shop" className="underline">Continue shopping</Link>
             </div>
         );
     }
@@ -161,6 +172,7 @@ export default function ProductDetails() {
                                     {safe.colors.map((col) => (
                                         <button
                                             key={col}
+                                            aria-pressed={selectedColor === col}
                                             onClick={() => setSelectedColor(col)}
                                             className={`px-4 py-2 border text-sm ${selectedColor === col
                                                 ? "border-black bg-black text-white"
@@ -178,9 +190,7 @@ export default function ProductDetails() {
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-sm font-bold">Size</label>
-                                <button className="text-sm underline text-gray-500 hover:text-black">
-                                    Size Guide
-                                </button>
+                                <Link to="/contact" className="text-sm underline text-gray-600 hover:text-black">Need sizing help?</Link>
                             </div>
 
                             {safe.sizes.length === 0 ? (
@@ -193,7 +203,8 @@ export default function ProductDetails() {
                                         {safe.sizes.map((size) => (
                                             <button
                                                 key={size}
-                                                onClick={() => setSelectedSize(size)}
+                                                aria-pressed={selectedSize === size}
+                                                onClick={() => { setSelectedSize(size); setSelectionError(''); }}
                                                 className={`py-3 text-sm font-medium border rounded transition-colors ${selectedSize === size
                                                     ? "border-black bg-black text-white"
                                                     : "border-gray-200 hover:border-black"
@@ -205,7 +216,7 @@ export default function ProductDetails() {
                                     </div>
 
                                     {!selectedSize && (
-                                        <p className="text-red-500 text-xs mt-1">
+                                        <p className="text-gray-600 text-sm mt-2">
                                             Please select a size
                                         </p>
                                     )}
@@ -213,6 +224,8 @@ export default function ProductDetails() {
                             )}
                         </div>
 
+                        {selectionError && <p role="alert" className="text-sm text-red-700">{selectionError}</p>}
+                        {isAdded && <p role="status" className="text-sm text-green-700">Added to your bag. <Link to="/bag" className="underline font-medium">View bag</Link></p>}
                         {/* Actions */}
                         <div className="flex gap-4 pt-4 border-t border-gray-100">
                             <button
@@ -227,6 +240,8 @@ export default function ProductDetails() {
                             </button>
 
                             <button
+                                aria-label={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                                aria-pressed={isInWishlist(product.id)}
                                 onClick={() => toggleWishlist(product)}
                                 className={`p-4 border rounded hover:bg-gray-50 ${isInWishlist(product.id) ? "bg-red-50 border-red-200" : ""
                                     }`}

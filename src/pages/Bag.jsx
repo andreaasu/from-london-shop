@@ -42,11 +42,11 @@ export default function Bag() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Shipping</span>
-                                <span className="font-medium">Calculated next step</span>
+                                <span className="font-medium">80-100 EGP on delivery</span>
                             </div>
                         </div>
                         <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-4 mb-6">
-                            <span>Total</span>
+                            <span>Subtotal before delivery</span>
                             <span>{formatCurrency(subtotal)}</span>
                         </div>
 

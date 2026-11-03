@@ -23,36 +23,23 @@ export const CartProvider = ({ children }) => {
 
     const addToCart = (product, size, color) => {
         if (!size && Array.isArray(product.sizes) && product.sizes.length > 0) {
-            console.error('Size is required');
-            return;
+            return { success: false, error: 'Please select a size.' };
         }
-
-        const stockAvailable = product.stock_by_size?.[size] ?? 0;
-
+        const stockAvailable = Number(product.stock_by_size?.[size] ?? 0);
+        const quantityInBag = cartItems.filter(item => item.id === product.id && item.selectedSize === size)
+            .reduce((sum, item) => sum + item.quantity, 0);
+        if (quantityInBag >= stockAvailable) {
+            return { success: false, error: stockAvailable > 0
+                ? `All ${stockAvailable} available in size ${size} are already in your bag.`
+                : 'This size is currently out of stock.' };
+        }
         setCartItems(prev => {
-            const existing = prev.find(item =>
-                item.id === product.id && item.selectedSize === size && item.selectedColor === color
-            );
-
-            if (existing) {
-                const newQty = existing.quantity + 1;
-                if (newQty > stockAvailable) {
-                    alert(`Only ${stockAvailable} items available in size ${size}`);
-                    return prev;
-                }
-                return prev.map(item =>
-                    item === existing ? { ...item, quantity: newQty } : item
-                );
-            }
-
-            if (stockAvailable < 1) {
-                alert(`Out of stock for size ${size}`);
-                return prev;
-            }
-
+            const existing = prev.find(item => item.id === product.id && item.selectedSize === size && item.selectedColor === color);
+            if (existing) return prev.map(item => item === existing ? { ...item, quantity: item.quantity + 1 } : item);
             return [...prev, { ...product, selectedSize: size, selectedColor: color, quantity: 1 }];
         });
         setIsCartOpen(true);
+        return { success: true };
     };
 
     const removeFromCart = (id, size, color) => {
@@ -67,8 +54,9 @@ export const CartProvider = ({ children }) => {
                 const newQty = item.quantity + delta;
                 const stockAvailable = item.stock_by_size?.[size] ?? 0;
 
-                if (newQty > stockAvailable) {
-                    alert(`Only ${stockAvailable} items available in size ${size}`);
+                const otherQuantity = prev.filter(other => other !== item && other.id === id && other.selectedSize === size)
+                    .reduce((sum, other) => sum + other.quantity, 0);
+                if (newQty + otherQuantity > stockAvailable) {
                     return item;
                 }
                 return newQty > 0 ? { ...item, quantity: newQty } : item;

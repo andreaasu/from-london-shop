@@ -8,7 +8,7 @@ export default function ProductGallery({ images = [], productName = "Product" })
 
     // Handle single image or empty states efficiently
     const hasMultipleImages = images && images.length > 1;
-    const safeImages = images && images.length > 0 ? images : ["/placeholder.jpg"];
+    const safeImages = images && images.length > 0 ? images : ["/placeholder.svg"];
 
     // Update selected index when embla changes
     const onSelect = useCallback(() => {
@@ -20,6 +20,10 @@ export default function ProductGallery({ images = [], productName = "Product" })
         if (!emblaApi) return;
         emblaApi.on("select", onSelect);
         emblaApi.on("reInit", onSelect);
+        return () => {
+            emblaApi.off("select", onSelect);
+            emblaApi.off("reInit", onSelect);
+        };
     }, [emblaApi, onSelect]);
 
     // Scroll to specific index (for thumbnails/dots)
@@ -39,8 +43,9 @@ export default function ProductGallery({ images = [], productName = "Product" })
     }, [emblaApi]);
 
     const handleImageError = (e) => {
-        e.target.onerror = null;
-        e.target.src = "/placeholder.jpg";
+        if (!e.currentTarget.src.endsWith("/placeholder.svg")) {
+            e.currentTarget.src = "/placeholder.svg";
+        }
     };
 
     return (
@@ -95,18 +100,18 @@ export default function ProductGallery({ images = [], productName = "Product" })
                     {hasMultipleImages && (
                         <>
                             {/* Left Hit Area for Mobile */}
-                            <div className="absolute top-0 bottom-0 left-0 w-12 flex items-center justify-center sm:hidden z-10" onClick={(e) => { e.stopPropagation(); scrollPrev(); }}>
+                            <button aria-label="Previous image" className="absolute top-0 bottom-0 left-0 w-12 flex items-center justify-center sm:hidden z-10" onClick={(e) => { e.stopPropagation(); scrollPrev(); }}>
                                 <div className="bg-white/60 p-1.5 rounded-full shadow-sm backdrop-blur-[2px]">
                                     <ChevronLeft size={20} className="text-gray-800" />
                                 </div>
-                            </div>
+                            </button>
 
                             {/* Right Hit Area for Mobile */}
-                            <div className="absolute top-0 bottom-0 right-0 w-12 flex items-center justify-center sm:hidden z-10" onClick={(e) => { e.stopPropagation(); scrollNext(); }}>
+                            <button aria-label="Next image" className="absolute top-0 bottom-0 right-0 w-12 flex items-center justify-center sm:hidden z-10" onClick={(e) => { e.stopPropagation(); scrollNext(); }}>
                                 <div className="bg-white/60 p-1.5 rounded-full shadow-sm backdrop-blur-[2px]">
                                     <ChevronRight size={20} className="text-gray-800" />
                                 </div>
-                            </div>
+                            </button>
                         </>
                     )}
                 </div>
@@ -134,6 +139,8 @@ export default function ProductGallery({ images = [], productName = "Product" })
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                     {safeImages.map((img, idx) => (
                         <button
+                            aria-label={`View image ${idx + 1} of ${productName}`}
+                            aria-pressed={selectedIndex === idx}
                             key={`${img}-${idx}`}
                             onClick={() => scrollTo(idx)}
                             className={`w-20 h-20 flex-shrink-0 cursor-pointer border overflow-hidden rounded transition-all ${selectedIndex === idx

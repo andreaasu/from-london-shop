@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
 const FilterContext = createContext();
 
@@ -17,11 +17,11 @@ export const FilterProvider = ({ children }) => {
         sort: 'newest', // 'price-low-high', 'price-high-low', 'best-sellers', 'newest'
     });
 
-    const updateFilter = (key, value) => {
+    const updateFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
-    };
+    }, []);
 
-    const resetFilters = () => {
+    const resetFilters = useCallback(() => {
         setFilters({
             search: '',
             gender: '',
@@ -33,12 +33,12 @@ export const FilterProvider = ({ children }) => {
             inStockOnly: false,
             sort: 'newest',
         });
-    };
+    }, []);
 
     // Explicitly allow replacing all filters for URL sync
-    const setAllFilters = (newFilters) => setFilters(newFilters);
+    const setAllFilters = useCallback((newFilters) => setFilters(newFilters), []);
 
-    const value = useMemo(() => ({ filters, updateFilter, resetFilters, setAllFilters }), [filters]);
+    const value = useMemo(() => ({ filters, updateFilter, resetFilters, setAllFilters }), [filters, updateFilter, resetFilters, setAllFilters]);
 
     return (
         <FilterContext.Provider value={value}>

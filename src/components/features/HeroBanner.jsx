@@ -19,7 +19,7 @@ export default function HeroBanner() {
                 <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-lg">
                     Discover the latest trends in womenswear, menswear and kids. Cozy knits, stylish coats and more.
                 </p>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-3">
                     <Link
                         to="/shop"
                         className="bg-white text-black px-8 py-3 font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors"

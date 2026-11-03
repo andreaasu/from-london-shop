@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Filter, X } from 'lucide-react';
 import ProductCard from '../components/features/ProductCard';
@@ -7,21 +7,31 @@ import MobileFilterDrawer from '../components/features/MobileFilterDrawer';
 import SortDropdown from '../components/features/SortDropdown';
 import { useFilters } from '../context/FilterContext';
 import { productService } from '../services/productService';
+import { sortSizes } from '../utils/sortSizes';
 
 export default function Shop() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [retry, setRetry] = useState(0);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const { filters, updateFilter, setAllFilters, resetFilters } = useFilters();
 
+    const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
+
     // Initial fetch
     useEffect(() => {
+        let active = true;
         productService.getProducts().then(data => {
-            setProducts(data);
-            setLoading(false);
+            if (active) setProducts(data);
+        }).catch(() => {
+            if (active) setError("We couldn't load the products. Please try again.");
+        }).finally(() => {
+            if (active) setLoading(false);
         });
-    }, []);
+        return () => { active = false; };
+    }, [retry]);
 
     // Sync URL params to Context on mount/update - STRICT SYNC
     useEffect(() => {
@@ -45,10 +55,10 @@ export default function Shop() {
         };
 
         setAllFilters(nextFilters);
-    }, [searchParams]);
+    }, [searchParams, setAllFilters]);
 
     // Helper to check if a product matches filters (except size)
-    const matchesBaseFilters = (product) => {
+    const matchesBaseFilters = useCallback((product) => {
         // Null checks and defaults for product data
         const pName = (product.name || '').toLowerCase().trim();
         const pTags = Array.isArray(product.tags) ? product.tags : [];
@@ -104,7 +114,7 @@ export default function Shop() {
         if (filters.inStockOnly && !pInStock) return false;
 
         return true;
-    };
+    }, [filters]);
 
     // 1. Derive Available Sizes based on products filtered by everything EXCEPT size
     const availableSizes = useMemo(() => {
@@ -124,18 +134,8 @@ export default function Shop() {
             }
         });
 
-        // Optional: Sort sizes if needed (XS, S, M, L... or numerical)
-        // For now, simple alphabetical or standard sort
-        const sorter = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '0-3M', '3-6M', '6-9M', '9-12M', '12-18M', '18-24M', '2-3Y', '3-4Y'];
-        return Array.from(sizesSet).sort((a, b) => {
-            const idxA = sorter.indexOf(a);
-            const idxB = sorter.indexOf(b);
-            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            if (idxA !== -1) return -1;
-            if (idxB !== -1) return 1;
-            return a.localeCompare(b);
-        });
-    }, [products, filters.search, filters.gender, filters.category, filters.collection, filters.priceRange, filters.inStockOnly]);
+        return sortSizes(Array.from(sizesSet));
+    }, [products, matchesBaseFilters]);
 
     // 2. Cleanup selected sizes that are no longer available
     useEffect(() => {
@@ -147,7 +147,7 @@ export default function Shop() {
                 updateFilter('size', validSizes);
             }
         }
-    }, [availableSizes, filters.size]);
+    }, [availableSizes, filters.size, updateFilter]);
 
 
     // 3. Final Filtered Products (including size filter)
@@ -186,7 +186,7 @@ export default function Shop() {
 
             return 0; // 'newest'
         });
-    }, [products, filters, availableSizes]); // availableSizes dependency not strictly needed for logic but good for consistency
+    }, [products, filters, matchesBaseFilters]); // availableSizes dependency not strictly needed for logic but good for consistency
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -205,11 +205,11 @@ export default function Shop() {
                 </div>
 
                 {/* Product Grid */}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                     {/* Desktop Header */}
-                    <div className="hidden md:flex justify-between items-center mb-6">
-                        <h1 className="text-xl font-bold uppercase">{filteredProducts.length} Products</h1>
-                        <SortDropdown />
+                    <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
+                        <h1 className="text-xl font-bold uppercase">{loading ? "Loading products..." : error ? "Products" : `${filteredProducts.length} Products`}</h1>
+                        <div className="hidden md:block"><SortDropdown /></div>
                     </div>
 
                     {/* Active Filters pills (optional, good for UX) */}
@@ -218,11 +218,16 @@ export default function Shop() {
                         <div className="mb-4">
                             <span className="text-gray-500">Searching for: </span>
                             <span className="font-bold">"{filters.search}"</span>
-                            <button onClick={() => updateFilter('search', '')} className="ml-2 text-red-500 text-sm"><X size={12} className="inline" /></button>
+                            <button aria-label="Clear search" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('search'); setSearchParams(next); }} className="ml-2 text-red-500 text-sm"><X size={12} className="inline" /></button>
                         </div>
                     )}
 
-                    {loading ? (
+                    {error ? (
+                        <div role="alert" className="py-16 px-6 text-center rounded-lg border border-gray-200 bg-white">
+                            <p>{error}</p>
+                            <button onClick={() => { setLoading(true); setError(''); setRetry(value => value + 1); }} className="mt-4 underline font-medium">Try again</button>
+                        </div>
+                    ) : loading ? (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                             {Array(8).fill(0).map((_, i) => <ProductCard key={i} isLoading={true} />)}
                         </div>
@@ -249,7 +254,7 @@ export default function Shop() {
 
             <MobileFilterDrawer
                 isOpen={isDrawerOpen}
-                onClose={() => setIsDrawerOpen(false)}
+                onClose={closeDrawer}
                 availableSizes={availableSizes}
             />
         </div>

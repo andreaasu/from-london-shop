@@ -41,21 +41,22 @@ export default function ProductCard({ product, isLoading }) {
     const pid = product?.id || product?.sku;
 
     const image =
-        (Array.isArray(product.images) ? product.images[0] : null) || "/placeholder.jpg";
+        (Array.isArray(product.images) ? product.images[0] : null) || "/placeholder.svg";
 
     const inStock = computeInStock(product);
 
     const colorsCount = Array.isArray(product.colors) ? product.colors.length : null;
 
     const handleImageError = (e) => {
-        e.target.onerror = null;
-        e.target.src = "/placeholder.jpg";
+        if (!e.currentTarget.src.endsWith("/placeholder.svg")) {
+            e.currentTarget.src = "/placeholder.svg";
+        }
     };
 
     return (
         <div className="group relative flex flex-col">
             <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-gray-100 mb-3">
-                <Link to={`/product/${encodeURIComponent(pid)}`}>
+                <Link className="block h-full" to={`/product/${encodeURIComponent(pid)}`}>
                     <img
                         src={image}
                         alt={product.name}
@@ -74,8 +75,9 @@ export default function ProductCard({ product, isLoading }) {
                         e.preventDefault();
                         toggleWishlist(product);
                     }}
-                    className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white text-gray-900 transition-colors shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    aria-label="Add to wishlist"
+                    className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white text-gray-900 transition-colors shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
+                    aria-label={isInList ? "Remove from wishlist" : "Add to wishlist"}
+                    aria-pressed={isInList}
                 >
                     <Heart
                         size={18}
@@ -121,8 +123,8 @@ export default function ProductCard({ product, isLoading }) {
                     )}
                 </div>
 
-                {colorsCount !== null && (
-                    <p className="text-xs text-gray-500 mt-1">{colorsCount} colours</p>
+                {colorsCount > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">{colorsCount} {colorsCount === 1 ? "colour" : "colours"}</p>
                 )}
             </div>
         </div>

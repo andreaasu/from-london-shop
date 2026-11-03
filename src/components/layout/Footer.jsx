@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { Facebook, Instagram } from 'lucide-react';
 
 export default function Footer() {
     return (
@@ -38,6 +38,7 @@ export default function Footer() {
                     {/* <h4 className="font-bold mb-4 text-black">Connect</h4> */}
                     <div className="flex space-x-4 mb-4">
                         <a
+                            aria-label="From London on Instagram"
                             href="https://www.instagram.com/therancystore/"
                             target="_blank"
                             rel="noopener noreferrer"
@@ -46,6 +47,7 @@ export default function Footer() {
                             <Instagram size={20} />
                         </a>
                         <a
+                            aria-label="From London on Facebook"
                             href="https://www.facebook.com/profile.php?id=100071128491885"
                             target="_blank"
                             rel="noopener noreferrer"

@@ -41,7 +41,7 @@ export const productService = {
             return (data || []).map(normalizeProduct).filter(p => p.is_visible !== false);
         } else {
             await delay(500);
-            return allProducts.filter(p => p.is_visible !== false);
+            throw new Error("The catalogue is currently unavailable. Please try again later.");
         }
     },
 
@@ -67,7 +67,7 @@ export const productService = {
             return null;
         } else {
             await delay(300);
-            return allProducts.find((p) => String(p.id) === key) || null;
+            throw new Error("The catalogue is currently unavailable. Please try again later.");
         }
     },
 
@@ -78,7 +78,7 @@ export const productService = {
             return (data || []).map(normalizeProduct).filter(p => p.is_visible !== false).slice(0, 8);
         } else {
             await delay(300);
-            return allProducts.filter(p => p.is_visible !== false).slice(0, 8);
+            throw new Error("The catalogue is currently unavailable. Please try again later.");
         }
     },
 };
