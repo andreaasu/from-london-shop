@@ -2,6 +2,8 @@
 
 Order email notifications: see [deployment, environment variables, database migration and end-to-end testing](docs/order-email-setup.md).
 
+Admin workspace: see [features, security, data definitions and staging checks](docs/admin-upgrade.md).
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

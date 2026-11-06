@@ -8,13 +8,34 @@ Gmail SMTP through Nodemailer replaces Resend; no domain purchase or DNS changes
 The customer/admin HTML and plain-text templates, stored order prices and checkout UI
 are unchanged.
 
-**Do not apply the migration yet.** Its live `place_order` and trigger compatibility
-review is still pending. Nothing has been applied to Supabase. The existing local
-queue migration remains at `supabase/migrations/202611060001_order_notifications.sql`;
-its local retry cutoff now allows seven days for daily cron recovery. It still
-includes permission revocations and a deferred trigger; those require the outstanding
-review before deployment. A database trigger error can roll back order creation,
-although an email/SMTP failure after order commit cannot.
+**Run `supabase/verify-order-notifications.sql` first and share every result set.**
+It reads function definitions, columns, triggers, constraints, indexes and queue-object
+existence; it reads no customer rows and changes nothing. Prior inspection confirmed
+column names via the API, but live RPC implementation/transaction behavior remains
+unverified. Nothing has been applied to Supabase.
+
+The prepared manual SQL is
+`supabase/migrations/202611060001_order_notifications.sql`. It requires `place_order`
+to insert the order and all items in a single transaction, without forcing this
+constraint trigger to run early. Verify its saved unit prices and return value
+(`orderId`, `total`) too. It leaves all existing checkout grants, policies, and the
+RPC unchanged. Only the new queue and its helper functions receive access controls.
+
+The deferred enqueue trigger catches ordinary errors, query cancellation and assertion
+failures inside its own block, rolls back only the enqueue, and writes an
+`order_notification_enqueue_failed` warning with order ID and SQLSTATE in Supabase
+Postgres logs. Orders can commit despite those notification errors. If enqueue fails,
+there is no durable queue job for cron to retry: that order needs manual reconciliation
+and authorized requeueing. Automatic retry/duplicate protection applies to jobs that
+were successfully queued. Fatal database/connection failures and errors outside this
+trigger still cannot be guaranteed harmless. No SMTP operation runs inside the trigger.
+
+Apply the manual SQL only after the verification results have been reviewed, preferably
+in staging first. It creates new objects without `IF NOT EXISTS`/replacement: a name
+collision stops the transaction rather than silently using incompatible objects.
+Existing orders are not backfilled or emailed. A five-second migration lock timeout
+limits waiting for the brief trigger-installation lock; if it fails, roll back the
+transaction and retry during quieter traffic. No database changes are made automatically.
 
 The queue's table, unique `(order_id, kind)` constraint, row leases, access controls,
 and exponential backoff are preserved. No additional database columns or functions

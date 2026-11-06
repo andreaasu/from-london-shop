@@ -27,7 +27,7 @@ async function authFetch(endpoint, options = {}) {
         try {
             const json = JSON.parse(errorText);
             errorMessage = json.error || errorText;
-        } catch (e) {
+        } catch {
             // use raw text
         }
         throw new Error(errorMessage || 'API Request Failed');
@@ -42,24 +42,30 @@ async function authFetch(endpoint, options = {}) {
 export const adminService = {
     // Products
     getProducts: () => authFetch('/products'),
-    getProduct: (id) => authFetch(`/products?id=${id}`),
+    getProduct: (id) => authFetch(`/products?id=${encodeURIComponent(id)}`),
     createProduct: (data) => authFetch('/products', {
         method: 'POST',
         body: JSON.stringify(data),
     }),
-    updateProduct: (id, data) => authFetch(`/products?id=${id}`, {
+    updateProduct: (id, data) => authFetch(`/products?id=${encodeURIComponent(id)}`, {
         method: 'PUT',
         body: JSON.stringify(data),
     }),
-    deleteProduct: (id) => authFetch(`/products?id=${id}`, {
+    deleteProduct: (id) => authFetch(`/products?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
     }),
 
     // Orders
     getOrders: () => authFetch('/orders'),
-    getOrder: (id) => authFetch(`/orders?id=${id}`),
-    updateOrderStatus: (id, status) => authFetch(`/orders?id=${id}`, {
+    getOrder: (id) => authFetch(`/orders?id=${encodeURIComponent(id)}`),
+    updateOrderStatus: (id, status, expectedStatus) => authFetch(`/orders?id=${encodeURIComponent(id)}`, {
         method: 'PUT',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, expectedStatus }),
     }),
+    getSettings: () => authFetch('/settings'),
+    async uploadImage(file) {
+        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size > 2 * 1024 * 1024) throw new Error('Choose a JPEG, PNG, WebP or GIF under 2 MB.');
+        const content = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });
+        return authFetch('/products?action=upload', { method: 'POST', body: JSON.stringify({ content, type: file.type }) });
+    },
 };

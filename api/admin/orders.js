@@ -1,68 +1,31 @@
-
 import { verifyAdmin } from '../_utils/auth.js';
-import { supabaseAdmin } from '../_utils/supabase.js';
-
-export const config = {
-    runtime: 'edge',
-};
+import { supabaseAdmin as db } from '../_utils/supabase.js';
+import { allRows, storedStatus, fail, json, errorResponse } from '../_utils/admin.js';
+export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
     try {
-        // 1. Verify Authentication (Owner only)
         await verifyAdmin(req);
-
-        const url = new URL(req.url);
-        const id = url.searchParams.get('id');
-
-        // GET /api/admin/orders
+        const id = new URL(req.url).searchParams.get('id');
         if (req.method === 'GET') {
-            let query = supabaseAdmin
-                .from('orders')
-                .select(`*, order_items(*, products(id, name, images, price))`)
-                .order('created_at', { ascending: false });
-
-            if (id) {
-                query = query.eq('id', id).single();
-            }
-
-            const { data, error } = await query;
+            const select = '*, order_items(*, products(id,name,images))';
+            if (!id) return json(await allRows(() => db.from('orders').select(select).order('created_at', { ascending: false }).order('id')));
+            const { data, error } = await db.from('orders').select(select).eq('id', id).single();
             if (error) throw error;
-
-            return new Response(JSON.stringify(data), {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            return json(data);
         }
-
-        // PUT /api/admin/orders?id=... (Update status)
         if (req.method === 'PUT') {
-            if (!id) throw new Error('Missing Order ID');
+            if (!id) throw fail('Order ID is required.');
             const body = await req.json();
-
-            // Only allow updating specific fields like status
-            if (!body.status) {
-                throw new Error('No status provided');
-            }
-
-            const { data, error } = await supabaseAdmin
-                .from('orders')
-                .update({ status: body.status })
-                .eq('id', id)
-                .select()
-                .single();
-
+            const status = storedStatus(body?.status);
+            if (!status) throw fail('Invalid order status.');
+            let query = db.from('orders').update({ status }).eq('id', id);
+            if (body.expectedStatus) query = query.eq('status', body.expectedStatus);
+            const { data, error } = await query.select().maybeSingle();
             if (error) throw error;
-
-            return new Response(JSON.stringify(data), {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            if (!data) throw fail('This order changed. Refresh before trying again.', 409);
+            return json(data);
         }
-
-        return new Response('Method Not Allowed', { status: 405 });
-
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: error.message.includes('Unauthorized') ? 403 : 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
+        return json({ error: 'Method Not Allowed' }, 405);
+    } catch (error) { return errorResponse(error); }
 }

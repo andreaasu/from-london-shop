@@ -1,60 +1,24 @@
-
-import { useEffect, useState } from 'react';
-import { adminService } from '../../services/adminService';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ShoppingBag, Wallet, CircleCheck, Clock, ArrowUpRight } from 'lucide-react';
+import { useAdminData } from '../../hooks/useAdminData';
+import { PageHeading, DataState, StatusBadge, EmptyState } from '../../components/admin/AdminUI';
+import { dashboardStats, stockTotal, money, orderNumber, statuses, statusKey, date } from '../../utils/admin';
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({
-        totalOrders: 0,
-        pendingOrders: 0,
-        revenue: 0,
-    });
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        // Fetch real stats later, for now we can maybe list orders and calculate
-        const fetchStats = async () => {
-            try {
-                const orders = await adminService.getOrders();
-                const totalOrders = orders.length;
-                const pendingOrders = orders.filter(o => o.status === 'pending').length;
-                // Assuming 'total' is in order table, adjust if needed based on schema
-                // Schema from prompt: products, orders, order_items. 
-                // orders table usually has 'total_amount' or similar. 
-                // I will assume specific field later, or calculate from items.
-                // For now, let's keep it simple or mock.
-                const revenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
-
-                setStats({ totalOrders, pendingOrders, revenue });
-            } catch (err) {
-                console.error("Failed to load dashboard stats", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchStats();
-    }, []);
-
-    if (loading) return <div>Loading dashboard...</div>;
-
-    return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Dashboard</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-gray-500 text-sm font-medium">Total Orders</h3>
-                    <p className="text-3xl font-bold mt-2">{stats.totalOrders}</p>
-                </div>
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-gray-500 text-sm font-medium">Pending Orders</h3>
-                    <p className="text-3xl font-bold mt-2">{stats.pendingOrders}</p>
-                </div>
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-gray-500 text-sm font-medium">Total Revenue</h3>
-                    <p className="text-3xl font-bold mt-2">{stats.revenue.toLocaleString()} LE</p>
-                </div>
-            </div>
-
-        </div>
-    );
+    const data = useAdminData();
+    const [days, setDays] = useState(30);
+    const { orders, products, threshold } = data;
+    const stats = dashboardStats(orders, days);
+    const low = products.filter(p => Object.values(p.stock_by_size || {}).some(q => Number(q) <= threshold) || stockTotal(p) === 0);
+    const max = Math.max(1, ...stats.series.map(s => s.total));
+    const cards = [['Order value', money(stats.sales), 'Non-cancelled orders in this period', Wallet], ['Orders placed', stats.placed, 'Including cancelled orders', ShoppingBag], ['Delivered value', money(stats.delivered), 'Delivered orders placed in this period', CircleCheck], ['Awaiting fulfilment', stats.active, 'Placed + processing in this period', Clock]];
+    return <><PageHeading title="Your store, at a glance" description="A clear view of your sales, customers and daily operations."><select aria-label="Dashboard period" className="admin-select" value={days} onChange={e => setDays(Number(e.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select><Link className="admin-button button-primary" to="/admin/products/new">Add product<ArrowUpRight size={15}/></Link></PageHeading>
+    <DataState {...data}/>{!data.loading && !data.error && <>
+        <div className="admin-stats">{cards.map(([label, value, note, Icon]) => <article className="admin-panel admin-stat" key={label}><div className="admin-stat-top"><span>{label}</span><span className="admin-stat-icon"><Icon size={18}/></span></div><strong>{value}</strong><small>{note}</small></article>)}</div>
+        <div className="admin-dashboard-grid"><section className="admin-panel"><div className="admin-panel-title"><div><h2>Sales overview</h2><p className="admin-muted">Order value by placement date · EGP · Cairo time</p></div><span className="admin-badge">{days} days</span></div><div className="admin-chart"><svg viewBox="0 0 640 210" role="img" aria-label={`Daily non-cancelled order value over ${days} days`}><defs><linearGradient id="sales-bar" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#0070c9"/><stop offset="1" stopColor="#64b8e8"/></linearGradient></defs>{[0,1,2,3].map(i => <g key={i}><line x1="58" x2="640" y1={20 + i*54} y2={20+i*54} stroke="#eaf0f6" strokeDasharray="4 4"/><text x="0" y={24+i*54} fontSize="9" fill="#8b98aa">{Math.round(max*(1-i/3)).toLocaleString()}</text></g>)}{stats.series.map((s,i) => <rect key={s.day} tabIndex="0" aria-label={`${s.label}: ${money(s.total)}, ${s.count} orders`} x={60+i*575/days} y={182-s.total/max*162} width={Math.max(2,575/days-3)} height={s.total/max*162 || 1} rx="2" fill="url(#sales-bar)"><title>{s.label}: {money(s.total)} · {s.count} orders</title></rect>)}</svg><div className="admin-chart-labels"><span>{stats.series[0].label}</span><span>{stats.series.at(-1).label}</span></div><details className="mt-4 text-xs admin-muted"><summary>View daily values</summary><div className="max-h-40 overflow-auto mt-3">{stats.series.map(s => <p key={s.day}>{s.label}: {money(s.total)} · {s.count} orders</p>)}</div></details></div></section>
+        <section className="admin-panel"><div className="admin-panel-title"><div><h2>Order pipeline</h2><p className="admin-muted">All-time order statuses</p></div></div><div className="p-6 space-y-5">{statuses.map(status => { const count = orders.filter(o => statusKey(o.status) === status).length; return <div key={status}><div className="flex justify-between"><StatusBadge status={status}/><strong className="text-xs">{count}</strong></div><div className="admin-progress"><span style={{ width: `${count/Math.max(1,orders.length)*100}%`, background: status === 'cancelled' ? '#d38696' : status === 'delivered' ? '#009999' : undefined }}/></div></div>; })}</div></section></div>
+        <div className="admin-dashboard-grid"><section className="admin-panel overflow-hidden"><div className="admin-panel-title"><h2>Recent orders</h2><Link className="admin-link" to="/admin/orders">View all →</Link></div><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.slice(0,6).map(o => <tr key={o.id}><td><Link className="admin-link" to={`/admin/orders?order=${encodeURIComponent(o.id)}`}>#{orderNumber(o)}</Link><div className="admin-muted">{date(o.created_at)}</div></td><td>{o.customer_name || 'Guest'}</td><td>{money(o.total)}</td><td><StatusBadge status={o.status}/></td></tr>)}</tbody></table>{!orders.length && <EmptyState title="Your first order starts here" description="New orders will appear automatically after you refresh."/>}</div></section>
+        <section className="admin-panel"><div className="admin-panel-title"><div><h2>Stock needs attention <span className="admin-badge badge-low">{low.length}</span></h2><p className="admin-muted">Any size at {threshold} units or fewer</p></div><Link className="admin-link" to="/admin/inventory">Manage →</Link></div><div className="p-5 space-y-5">{low.slice(0,5).map(p => <Link key={p.id} to={`/admin/products/${encodeURIComponent(p.id)}`} className="admin-product-cell"><img className="admin-product-image" src={p.images?.[0] || '/placeholder.svg'} alt=""/><div className="flex-1"><strong>{p.name}</strong><small>{stockTotal(p)} total units · {Object.entries(p.stock_by_size || {}).filter(([,q]) => Number(q) <= threshold).map(([s,q]) => `${s}: ${q}`).join(' · ') || 'Out of stock'}</small></div></Link>)}{!low.length && <EmptyState title="Stock looks healthy" description="No products need your attention."/>}</div></section></div>
+    </>}</>;
 }

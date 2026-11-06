@@ -22,6 +22,9 @@ const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/Products'));
 const ProductForm = lazy(() => import('./pages/admin/ProductForm'));
 const AdminOrders = lazy(() => import('./pages/admin/Orders'));
+const AdminInventory = lazy(() => import('./pages/admin/Inventory'));
+const AdminCustomers = lazy(() => import('./pages/admin/Customers'));
+const AdminSettings = lazy(() => import('./pages/admin/Settings'));
 
 // Auth & Admin Route
 import { AuthProvider } from './context/AuthContext';
@@ -31,8 +34,7 @@ import AdminRoute from './routes/AdminRoute';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { About, Contact, NotFound } from './pages/StaticPages';
 
-function App() {
-  const PageLoader = () => (
+const PageLoader = () => (
     <div style={{
       height: '100vh',
       display: 'flex',
@@ -45,6 +47,8 @@ function App() {
       Loading...
     </div>
   );
+
+function App() {
 
   return (
     <ErrorBoundary>
@@ -113,6 +117,9 @@ function App() {
                     <Route path="products/new" element={<ProductForm />} />
                     <Route path="products/:id" element={<ProductForm />} />
                     <Route path="orders" element={<AdminOrders />} />
+                    <Route path="inventory" element={<AdminInventory />} />
+                    <Route path="customers" element={<AdminCustomers />} />
+                    <Route path="settings" element={<AdminSettings />} />
                   </Route>
                 </Route>
 

@@ -1,106 +1,32 @@
-import { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { LayoutDashboard, Package, ShoppingBag, Boxes, Users, Settings, LogOut, ArrowUpRight, Menu, X, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { AdminDataContext, useAdminSource } from '../hooks/useAdminData';
+import './admin.css';
 
+const navigation = [
+    ['/admin', 'Overview', LayoutDashboard], ['/admin/products', 'Products', Package],
+    ['/admin/orders', 'Orders', ShoppingBag], ['/admin/inventory', 'Inventory', Boxes],
+    ['/admin/customers', 'Customers', Users], ['/admin/settings', 'Settings', Settings],
+];
 export default function AdminLayout() {
-    const { signOut } = useAuth();
-    const location = useLocation();
+    const { signOut, user } = useAuth();
     const navigate = useNavigate();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-    // Close sidebar on route change
-    useEffect(() => {
-        setIsSidebarOpen(false);
-    }, [location.pathname]);
-
-    const handleSignOut = async () => {
-        await signOut();
-        navigate('/admin/login');
-    };
-
-    const navItems = [
-        { path: '/admin', label: 'Dashboard' },
-        { path: '/admin/products', label: 'Products' },
-        { path: '/admin/orders', label: 'Orders' },
-    ];
-
-    const currentPath = location.pathname;
-
-    return (
-        <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
-            {/* Mobile Header */}
-            <div className="md:hidden bg-white shadow-sm p-4 flex justify-between items-center z-20 relative">
-                <h1 className="text-xl font-bold tracking-tighter">Admin Portal</h1>
-                <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-2 rounded hover:bg-gray-100"
-                    aria-label="Toggle menu"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        {isSidebarOpen ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        )}
-                    </svg>
-                </button>
-            </div>
-
-            {/* Sidebar Overlay (Mobile) */}
-            {isSidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-            )}
-
-            {/* Sidebar */}
-            <aside className={`
-                fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-md flex flex-col transition-transform duration-300 ease-in-out
-                md:static md:translate-x-0
-                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            `}>
-                <div className="p-6 border-b hidden md:block">
-                    <h1 className="text-xl font-bold tracking-tighter">Admin Portal</h1>
-                </div>
-
-                <div className="md:hidden p-4 border-b flex justify-between items-center bg-gray-50">
-                    <span className="font-bold text-gray-500">Menu</span>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-gray-500">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className={`block px-4 py-2 rounded-md transition-colors ${currentPath === item.path || (item.path !== '/admin' && currentPath.startsWith(item.path))
-                                ? 'bg-black text-white'
-                                : 'text-gray-700 hover:bg-gray-100'
-                                }`}
-                        >
-                            {item.label}
-                        </Link>
-                    ))}
-                </nav>
-                <div className="p-4 border-t mt-auto">
-                    <button
-                        onClick={handleSignOut}
-                        className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                        Sign Out
-                    </button>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 p-4 md:p-8 overflow-x-hidden overflow-y-auto h-[calc(100vh-64px)] md:h-screen">
-                <Outlet />
-            </main>
-        </div>
-    );
+    const location = useLocation();
+    const [open, setOpen] = useState(false);
+    const [error, setError] = useState('');
+    const data = useAdminSource();
+    const section = navigation.find(([path]) => path !== '/admin' && location.pathname.startsWith(path))?.[1] || 'Overview';
+    return <AdminDataContext.Provider value={data}><div className="admin-shell">
+        {open && <button className="admin-sidebar-overlay" aria-label="Close navigation" onClick={() => setOpen(false)}/>}
+        <aside className={`admin-sidebar ${open ? 'sidebar-open' : ''}`}>
+            <Link to="/admin" className="admin-brand" onClick={() => setOpen(false)}><span className="admin-brand-symbol">FL<span>•</span></span><span>FROM LONDON<small>COMMERCE STUDIO</small></span></Link>
+            <button className="admin-mobile-close" aria-label="Close navigation" onClick={() => setOpen(false)}><X/></button>
+            <p className="admin-nav-label">WORKSPACE</p><nav aria-label="Admin navigation">{navigation.map(([path, label, Icon]) => <NavLink key={path} to={path} end={path === '/admin'} onClick={() => setOpen(false)} className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}><Icon size={19}/>{label}</NavLink>)}</nav>
+            <div className="admin-sidebar-bottom"><Link to="/" className="admin-nav-link">View storefront<ArrowUpRight size={17}/></Link><button className="admin-nav-link w-full" onClick={async () => { try { await signOut(); navigate('/admin/login'); } catch { setError('Unable to sign out. Try again.'); } }}><LogOut size={18}/>Sign out</button>{error && <p role="alert">{error}</p>}<div className="admin-store-status"><span/>From London · EGP</div></div>
+        </aside>
+        <div className="admin-workspace"><header className="admin-topbar"><div className="admin-actions"><button className="admin-icon-button md:hidden" aria-label="Open navigation" onClick={() => setOpen(true)}><Menu/></button><span className="admin-muted">Workspace</span><span className="text-slate-300">/</span><strong>{section}</strong></div><div className="admin-actions"><button className="admin-icon-button" aria-label="Refresh store data" onClick={data.reload}><RefreshCw size={17}/></button><span className="admin-avatar" title={user?.email}>{user?.email?.slice(0, 2).toUpperCase() || 'FL'}</span><span className="hidden sm:block text-xs"><strong>Store owner</strong><br/><span className="admin-muted">Administrator</span></span></div></header>
+        <main className="admin-main"><Outlet/></main><footer className="admin-workspace-footer">From London <span>Store operations · Africa/Cairo</span></footer></div>
+    </div></AdminDataContext.Provider>;
 }

@@ -1,106 +1,62 @@
-
 import { verifyAdmin } from '../_utils/auth.js';
-import { supabaseAdmin } from '../_utils/supabase.js';
-
-export const config = {
-    runtime: 'edge',
-};
+import { supabaseAdmin as db } from '../_utils/supabase.js';
+import { allRows, productPayload, fail, json, errorResponse } from '../_utils/admin.js';
+export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
     try {
-        // 1. Verify Authentication (Owner only)
-        if (req.method !== 'GET') { // Optional: Allow public GET if via this API? No, requirement says public only SELECT via Supabase client, this API is for Admin.
-            await verifyAdmin(req);
-        } else {
-            // Even for GET, if this is strict admin API, let's secure it. 
-            // User asked for "Protect admin routes... Access denied". 
-            // Public site uses supabase-js directly.
-            await verifyAdmin(req);
-        }
-
+        await verifyAdmin(req);
         const url = new URL(req.url);
         const id = url.searchParams.get('id');
-
-        // GET /api/admin/products
         if (req.method === 'GET') {
-            let query = supabaseAdmin
-                .from('products')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (id) {
-                query = query.eq('id', id).single();
+            if (!id) return json(await allRows(() => db.from('products').select('*').order('id')));
+            const { data, error } = await db.from('products').select('*').eq('id', id).single();
+            if (error) throw error;
+            return json(data);
+        }
+        if (req.method === 'POST' && url.searchParams.get('action') === 'upload') {
+            const { content, type } = await req.json();
+            if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(type) || typeof content !== 'string' || content.length > 2800000) throw fail('Choose a JPEG, PNG, WebP or GIF image under 2 MB.');
+            let bytes;
+            try { bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0)); } catch { throw fail('Invalid image data.'); }
+            const valid = type === 'image/jpeg' ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+                : type === 'image/png' ? [137,80,78,71,13,10,26,10].every((b, i) => bytes[i] === b)
+                : type === 'image/gif' ? new TextDecoder().decode(bytes.slice(0, 6)).match(/^GIF8[79]a$/)
+                : new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP';
+            if (!valid || bytes.length > 2 * 1024 * 1024) throw fail('Invalid or oversized image.');
+            const path = `admin/${crypto.randomUUID()}.${({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[type]}`;
+            const { error } = await db.storage.from('product-images').upload(path, bytes, { contentType: type, upsert: false });
+            if (error) throw error;
+            return json({ url: db.storage.from('product-images').getPublicUrl(path).data.publicUrl }, 201);
+        }
+        if (req.method === 'POST' || req.method === 'PUT') {
+            if (req.method === 'PUT' && !id) throw fail('Product ID is required.');
+            const body = await req.json();
+            const payload = productPayload(body, req.method === 'POST');
+            let query;
+            if (req.method === 'POST') query = db.from('products').insert(payload);
+            else {
+                query = db.from('products').update(payload).eq('id', id);
+                if ('stock_by_size' in payload) {
+                    if (!Object.hasOwn(body, 'expectedStock')) throw fail('Refresh this product before changing stock.');
+                    // Compare-and-swap: a checkout decrement must never be overwritten.
+                    query = body.expectedStock === null ? query.is('stock_by_size', null) : query.eq('stock_by_size', JSON.stringify(body.expectedStock));
+                }
             }
-
-            const { data, error } = await query;
+            const { data, error } = await query.select().maybeSingle();
             if (error) throw error;
-
-            return new Response(JSON.stringify(data), {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            if (!data) throw fail('Stock changed or the product was removed. Refresh before saving again.', 409);
+            return json(data, req.method === 'POST' ? 201 : 200);
         }
-
-        // POST /api/admin/products
-        if (req.method === 'POST') {
-            const body = await req.json();
-
-            // Basic validation could go here
-
-            const { data, error } = await supabaseAdmin
-                .from('products')
-                .insert(body)
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            return new Response(JSON.stringify(data), {
-                status: 201,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-
-        // PUT /api/admin/products?id=...
-        if (req.method === 'PUT') {
-            if (!id) throw new Error('Using UPDATE without ID is unsafe');
-            const body = await req.json();
-
-            const { data, error } = await supabaseAdmin
-                .from('products')
-                .update(body)
-                .eq('id', id)
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            return new Response(JSON.stringify(data), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-
-        // DELETE /api/admin/products?id=...
         if (req.method === 'DELETE') {
-            if (!id) throw new Error('Using DELETE without ID is unsafe');
-
-            const { error } = await supabaseAdmin
-                .from('products')
-                .delete()
-                .eq('id', id);
-
+            if (!id) throw fail('Product ID is required.');
+            const { count, error: historyError } = await db.from('order_items').select('id', { count: 'exact', head: true }).eq('product_id', id);
+            if (historyError) throw historyError;
+            if (count) throw fail('This product belongs to historical orders and cannot be deleted.', 409);
+            const { error } = await db.from('products').delete().eq('id', id);
             if (error) throw error;
-
-            return new Response(JSON.stringify({ success: true }), {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            return json({ success: true });
         }
-
-        return new Response('Method Not Allowed', { status: 405 });
-
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: error.message.includes('Unauthorized') ? 403 : 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
+        return json({ error: 'Method Not Allowed' }, 405);
+    } catch (error) { return errorResponse(error); }
 }

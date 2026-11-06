@@ -1,18 +1,9 @@
--- Run before deploying the new API. Existing orders are deliberately not emailed.
+-- MANUAL ONLY: first run ../verify-order-notifications.sql and verify place_order
+-- inserts orders + all order_items within one transaction. No existing-order backfill.
+-- Must be run as an authorized database owner (e.g. Supabase SQL Editor postgres).
+-- Do not change existing checkout grants, policies, or place_order.
 begin;
--- Checkout already uses service_role through /api/place-order. Block bypasses.
-revoke insert on public.orders, public.order_items from anon, authenticated;
-do $$
-declare f record;
-begin
-  for f in select oid::regprocedure as signature from pg_proc
-    where pronamespace = 'public'::regnamespace and proname = 'place_order'
-  loop
-    execute format('revoke execute on function %s from public, anon, authenticated', f.signature);
-    execute format('grant execute on function %s to service_role', f.signature);
-  end loop;
-end;
-$$;
+set local lock_timeout = '5s';
 create table public.order_notifications (
   id uuid primary key default gen_random_uuid(),
   order_id text not null,
@@ -33,7 +24,7 @@ create table public.order_notifications (
 );
 create index order_notifications_due on public.order_notifications(next_attempt_at) where status in ('pending','sending');
 alter table public.order_notifications enable row level security;
-revoke all on public.order_notifications from anon, authenticated;
+revoke all on public.order_notifications from public, anon, authenticated;
 grant all on public.order_notifications to service_role;
 
 create function public.enqueue_order_notifications() returns trigger
@@ -44,9 +35,20 @@ begin
   select coalesce(jsonb_agg(to_jsonb(i) || jsonb_build_object('product_name', p.name) order by i.id), '[]'::jsonb)
     into saved_items from public.order_items i left join public.products p on p.id = i.product_id
     where i.order_id = new.id;
+  if saved_order is null or jsonb_array_length(saved_items) = 0 then
+    raise exception 'Notification snapshot is incomplete';
+  end if;
   insert into public.order_notifications(order_id, kind, snapshot)
     select new.id::text, k, jsonb_build_object('order', saved_order, 'items', saved_items)
     from unnest(array['customer','admin']) k on conflict (order_id, kind) do nothing;
+  return new;
+exception when others or query_canceled or assert_failure then
+  -- This exception block rolls back ONLY this enqueue operation. Never discard
+  -- the customer's order because the optional notification queue failed.
+  -- Do not include SQLERRM or customer fields in logs.
+  -- Includes optional enqueue cancellation; fatal connection/database failures and
+  -- errors elsewhere in the order transaction cannot be isolated by this handler.
+  raise warning 'order_notification_enqueue_failed order_id=% sqlstate=%', new.id, SQLSTATE;
   return new;
 end;
 $$;

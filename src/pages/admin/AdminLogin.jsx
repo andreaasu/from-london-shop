@@ -1,73 +1,12 @@
-
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, LockKeyhole } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import '../../layout/admin.css';
 
 export default function AdminLogin() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const { signIn } = useAuth();
-    const navigate = useNavigate();
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-
-        try {
-            const { error } = await signIn({ email, password });
-            if (error) throw error;
-            navigate('/admin');
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-                <h1 className="text-2xl font-bold mb-6 text-center">Admin Login</h1>
-
-                {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
-                            type="email"
-                            required
-                            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                        <input
-                            type="password"
-                            required
-                            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-black text-white py-2 rounded font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-                    >
-                        {loading ? 'Signing in...' : 'Sign In'}
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
+    const [email,setEmail] = useState(''), [password,setPassword] = useState(''), [loading,setLoading] = useState(false), [error,setError] = useState('');
+    const { signIn } = useAuth(), navigate = useNavigate();
+    const submit = async e => { e.preventDefault(); setLoading(true); setError(''); try { const { error } = await signIn({ email,password }); if (error) throw error; navigate('/admin'); } catch (err) { setError(err.message); } finally { setLoading(false); } };
+    return <div className="admin-shell min-h-screen items-center justify-center p-5"><div className="admin-panel grid md:grid-cols-2 overflow-hidden w-full max-w-4xl"><div className="hidden md:flex bg-[#101e30] text-white p-12 flex-col justify-between"><div className="admin-brand !m-0"><span className="admin-brand-symbol">FL<span>•</span></span><span>FROM LONDON<small>COMMERCE STUDIO</small></span></div><div className="py-20"><p className="text-teal-300 text-xs tracking-widest mb-5">YOUR STORE. YOUR NEXT CHAPTER.</p><h1 className="text-4xl font-semibold leading-tight tracking-tight">Everything you need.<br/>One clear view.</h1><p className="text-slate-400 mt-6 leading-7 text-sm">A thoughtful workspace for your products, orders and the customers who make it all possible.</p></div><p className="text-slate-500 text-xs">From London · Store operations</p></div><div className="p-8 md:p-12"><Link to="/" className="admin-link admin-actions mb-12"><ArrowLeft size={15}/>Back to storefront</Link><span className="admin-stat-icon w-fit mb-6"><LockKeyhole size={22}/></span><h2 className="text-2xl font-bold mb-3 tracking-tight">Welcome back</h2><p className="admin-muted mb-8">Sign in to your store management workspace.</p>{error && <p className="admin-alert" role="alert">{error}</p>}<form onSubmit={submit} className="space-y-5"><div><label htmlFor="admin-email" className="admin-field-label">Email address</label><input id="admin-email" className="admin-input w-full" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} disabled={loading}/></div><div><label htmlFor="admin-password" className="admin-field-label">Password</label><input id="admin-password" className="admin-input w-full" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} disabled={loading}/></div><button className="admin-button button-primary w-full !mt-7" disabled={loading}>{loading ? 'Signing in…' : 'Sign in to workspace'}</button></form><p className="admin-muted mt-8">Access is limited to the authorized store owner.</p></div></div></div>;
 }

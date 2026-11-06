@@ -1,185 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
+import { useAdminData } from '../../hooks/useAdminData';
+import { PageHeading, DataState, PagedTable, ConfirmDialog } from '../../components/admin/AdminUI';
+import { money, stockTotal } from '../../utils/admin';
 
 export default function Products() {
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [errMsg, setErrMsg] = useState('');
-
-    const loadProducts = async () => {
+    const data = useAdminData();
+    const { products, threshold } = data;
+    const [search, setSearch] = useState(''), [gender, setGender] = useState(''), [stock, setStock] = useState(''), [sort, setSort] = useState('newest');
+    const [selected, setSelected] = useState([]), [confirm, setConfirm] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
+    const [bulkPrice, setBulkPrice] = useState('');
+    const rows = products.filter(p => `${p.name} ${p.id} ${p.sku || ''}`.toLowerCase().includes(search.toLowerCase()) && (!gender || p.gender === gender) && (!stock || (stock === 'out' ? stockTotal(p) === 0 : stock === 'low' ? stockTotal(p) > 0 && stockTotal(p) <= threshold : stockTotal(p) > threshold))).sort((a,b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'price-up' ? a.price-b.price : sort === 'price-down' ? b.price-a.price : sort === 'stock' ? stockTotal(a)-stockTotal(b) : new Date(b.created_at)-new Date(a.created_at));
+    const toggle = id => setSelected(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids,id]);
+    const run = async () => {
+        setBusy(true); setError(''); setNotice('');
         try {
-            setErrMsg('');
-            const data = await adminService.getProducts();
-            setProducts(Array.isArray(data) ? data : []);
-        } catch (error) {
-            console.error('ADMIN PRODUCTS LOAD ERROR:', error);
-            setErrMsg(error?.message || 'Failed to load products');
-        } finally {
-            setLoading(false);
-        }
+            const ids = confirm.id ? [confirm.id] : selected;
+            const results = [];
+            for (const id of ids) { try { if (confirm.type === 'delete') await adminService.deleteProduct(id); else await adminService.updateProduct(id, { price: Number(bulkPrice) }); results.push({ id, ok: true }); } catch (err) { results.push({ id, error: err.message }); } }
+            const failed = results.filter(r => !r.ok);
+            setSelected(failed.map(r => r.id));
+            setNotice(`${results.length-failed.length} product(s) updated.`);
+            if (failed.length) setError(failed.map(r => `${r.id}: ${r.error}`).join(' '));
+            data.reload(); setConfirm(null);
+        } finally { setBusy(false); }
     };
-
-    useEffect(() => {
-        loadProducts();
-    }, []);
-
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) return;
-        try {
-            await adminService.deleteProduct(id);
-            await loadProducts();
-        } catch (error) {
-            console.error('ADMIN DELETE ERROR:', error);
-            alert(error?.message || 'Failed to delete product');
-        }
-    };
-
-    if (loading) return <div>Loading products...</div>;
-
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Products</h2>
-                <Link
-                    to="/admin/products/new"
-                    className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
-                >
-                    Add Product
-                </Link>
-            </div>
-
-            {errMsg && (
-                <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                    {errMsg}
-                </div>
-            )}
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {products.map((product) => (
-                            <tr key={product.id}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                        {product.images?.[0] && (
-                                            <img
-                                                className="h-10 w-10 rounded-full object-cover mr-3"
-                                                src={product.images[0]}
-                                                alt=""
-                                            />
-                                        )}
-                                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                                    </div>
-                                </td>
-
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {product.price} LE
-                                </td>
-
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span
-                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                            }`}
-                                    >
-                                        {product.in_stock ? 'In Stock' : 'Out of Stock'}
-                                    </span>
-                                </td>
-
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Link
-                                        to={`/admin/products/${product.id}`}
-                                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                                    >
-                                        Edit
-                                    </Link>
-                                    <button
-                                        onClick={() => handleDelete(product.id)}
-                                        className="text-red-600 hover:text-red-900"
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-
-                        {!products.length && !errMsg && (
-                            <tr>
-                                <td className="px-6 py-6 text-sm text-gray-500" colSpan={4}>
-                                    No products found.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-4">
-                {products.map((product) => (
-                    <div key={product.id} className="bg-white p-4 rounded-lg shadow flex items-start space-x-4">
-                        {/* Image */}
-                        <div className="flex-shrink-0">
-                            {product.images?.[0] ? (
-                                <img
-                                    className="h-16 w-16 rounded-md object-cover"
-                                    src={product.images[0]}
-                                    alt=""
-                                />
-                            ) : (
-                                <div className="h-16 w-16 bg-gray-100 rounded-md flex items-center justify-center text-gray-400 text-xs">
-                                    No Img
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">{product.name}</h3>
-                            <p className="text-sm text-gray-500 mt-1">{product.price} LE</p>
-                            <div className="mt-2">
-                                <span
-                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                        }`}
-                                >
-                                    {product.in_stock ? 'In Stock' : 'Out of Stock'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex flex-col space-y-2">
-                            <Link
-                                to={`/admin/products/${product.id}`}
-                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                            >
-                                Edit
-                            </Link>
-                            <button
-                                onClick={() => handleDelete(product.id)}
-                                className="text-red-600 hover:text-red-900 text-sm font-medium"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                ))}
-                {!products.length && !errMsg && (
-                    <div className="text-center py-8 text-gray-500">
-                        No products found.
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+    return <><PageHeading title="Products" description={`${products.length} products. Thoughtfully manage every detail of your catalogue.`}><Link className="admin-button button-primary" to="/admin/products/new"><Plus size={16}/>Add product</Link></PageHeading><DataState {...data}/>
+        {error && <div className="admin-alert" role="alert">{error}</div>}{notice && <div className="admin-notice" role="status">{notice}</div>}
+        {!data.loading && !data.error && <><div className="admin-toolbar"><div className="admin-search"><Search size={16}/><input className="admin-input" aria-label="Search products" placeholder="Search products, SKU or ID…" value={search} onChange={e => setSearch(e.target.value)}/></div><select aria-label="Category" className="admin-select" value={gender} onChange={e => setGender(e.target.value)}><option value="">All categories</option>{[...new Set(products.map(p => p.gender).filter(Boolean))].map(g => <option key={g}>{g}</option>)}</select><select aria-label="Stock filter" className="admin-select" value={stock} onChange={e => setStock(e.target.value)}><option value="">All stock</option><option value="in">Healthy stock</option><option value="low">Low total stock</option><option value="out">Out of stock</option></select><select aria-label="Sort products" className="admin-select" value={sort} onChange={e => setSort(e.target.value)}><option value="newest">Newest first</option><option value="name">Name A–Z</option><option value="price-up">Price: low to high</option><option value="price-down">Price: high to low</option><option value="stock">Lowest stock</option></select></div>
+        {!!selected.length && <div className="admin-notice admin-actions"><strong>{selected.length} selected</strong><input className="admin-input w-32" type="number" min="0" step="0.01" aria-label="Bulk price in EGP" placeholder="New price EGP" value={bulkPrice} onChange={e => setBulkPrice(e.target.value)}/><button className="admin-button" disabled={bulkPrice === '' || Number(bulkPrice) < 0} onClick={() => setConfirm({ type: 'price' })}>Set price</button><button className="admin-button" onClick={() => setConfirm({ type: 'delete' })}>Delete selected</button><button className="admin-link" onClick={() => setSelected([])}>Clear</button></div>}
+        <label className="admin-muted admin-actions mb-3"><input className="admin-check" type="checkbox" checked={rows.length > 0 && rows.every(p => selected.includes(p.id))} onChange={e => setSelected(e.target.checked ? rows.map(p => p.id) : [])}/>Select all {rows.length} filtered products</label>
+        <PagedTable rows={rows} columns={['Select','Product','Category','Price','Inventory','Actions']} emptyTitle="No matching products" renderRow={p => <tr key={p.id}><td><input aria-label={`Select ${p.name}`} className="admin-check" type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)}/></td><td><Link to={`/admin/products/${encodeURIComponent(p.id)}`} className="admin-product-cell"><img className="admin-product-image" src={p.images?.[0] || '/placeholder.svg'} alt=""/><div><strong>{p.name}</strong><small>{p.sku || p.id}</small></div></Link></td><td className="capitalize">{p.gender}</td><td><strong>{money(p.price)}</strong>{p.oldPrice > p.price && <div className="admin-muted line-through">{money(p.oldPrice)}</div>}</td><td><span className={`admin-badge ${stockTotal(p) === 0 ? 'badge-out' : stockTotal(p) <= threshold ? 'badge-low' : 'badge-in-stock'}`}>{stockTotal(p)} units</span><div className="mt-1">{Object.entries(p.stock_by_size || {}).map(([size,q]) => <span key={size} className="admin-stock-chip">{size}: {q}</span>)}</div></td><td><div className="admin-actions"><Link aria-label={`Edit ${p.name}`} className="admin-icon-button" to={`/admin/products/${encodeURIComponent(p.id)}`}><Pencil size={16}/></Link><button aria-label={`Delete ${p.name}`} className="admin-icon-button" onClick={() => setConfirm({ type:'delete', id:p.id })}><Trash2 size={16}/></button></div></td></tr>}/></>}
+        {confirm && <ConfirmDialog title={confirm.type === 'delete' ? 'Delete products?' : 'Update selected prices?'} description={confirm.type === 'delete' ? 'Products used in historical orders will be protected. This permanently deletes eligible products; bulk results are reported individually.' : `Set the price of ${selected.length} products to ${money(bulkPrice)}. Stock and historical order prices stay unchanged.`} busy={busy} destructive={confirm.type === 'delete'} onClose={() => setConfirm(null)} onConfirm={run}/>}</>;
 }

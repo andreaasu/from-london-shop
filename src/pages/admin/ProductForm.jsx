@@ -1,292 +1,38 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Upload, X, Star } from 'lucide-react';
 import { adminService } from '../../services/adminService';
-import { supabase } from '../../lib/supabaseClient';
+import { useAdminData } from '../../hooks/useAdminData';
+import { PageHeading, DataState } from '../../components/admin/AdminUI';
 
+const blank = { name:'', price:'', oldPrice:'', description:'', gender:'women', images:[], stock_by_size:{}, sku:'', display_order:0 };
 export default function ProductForm() {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const isEdit = !!id;
-
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        name: '',
-        price: '',
-        oldPrice: '',
-        description: '',
-        gender: 'women', // default
-        images: [],
-        stock_by_size: {},
-        in_stock: false
-    });
-
-    const [sizeInput, setSizeInput] = useState({ size: '', qty: 1 });
-    const [uploading, setUploading] = useState(false);
-
+    const { id } = useParams(), navigate = useNavigate(), { reload } = useAdminData();
+    const [form, setForm] = useState(blank), [originalStock, setOriginalStock] = useState(null), [fetching, setFetching] = useState(Boolean(id)), [loadError, setLoadError] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false), [uploading, setUploading] = useState(false);
+    const [size, setSize] = useState(''), [quantity, setQuantity] = useState(1);
     useEffect(() => {
-        if (isEdit) {
-            loadProduct();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (!id) return;
+        let active = true;
+        adminService.getProduct(id).then(product => { if (active) { setForm({ ...blank,...product, images: product.images || [], sku: product.sku || '' }); setOriginalStock(product.stock_by_size ?? null); } }).catch(err => { if (active) setLoadError(err.message); }).finally(() => { if (active) setFetching(false); });
+        return () => { active = false; };
     }, [id]);
-
-    const loadProduct = async () => {
+    const update = e => setForm({ ...form,[e.target.name]:e.target.value });
+    const upload = async e => {
+        const files = [...e.target.files]; setUploading(true); setError('');
+        try { for (const file of files) { const result = await adminService.uploadImage(file); setForm(previous => ({ ...previous,images:[...previous.images,result.url] })); } } catch (err) { setError(err.message); } finally { setUploading(false); }
+    };
+    const save = async e => {
+        e.preventDefault(); setBusy(true); setError('');
         try {
-            const product = await adminService.getProduct(id);
-            if (product) setFormData(product);
-        } catch (err) {
-            console.error(err);
-            alert('Failed to load product');
-        }
+            const payload = { name:form.name, description:form.description || '', gender:form.gender, sku:form.sku || '', display_order:Number(form.display_order || 0), price:Number(form.price), oldPrice:form.oldPrice === '' || form.oldPrice == null ? null : Number(form.oldPrice), images:form.images, stock_by_size: Object.fromEntries(Object.entries(form.stock_by_size || {}).map(([s,q]) => [s,Number(q)])) };
+            if (!payload.sku) { if (id) payload.sku = null; else delete payload.sku; }
+            if (id) await adminService.updateProduct(id, { ...payload,expectedStock:originalStock }); else await adminService.createProduct(payload);
+            reload(); navigate('/admin/products');
+        } catch (err) { setError(err.message); } finally { setBusy(false); }
     };
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const handleCreateSize = () => {
-        if (!sizeInput.size) return;
-        const newStock = {
-            ...(formData.stock_by_size || {}),
-            [sizeInput.size]: parseInt(sizeInput.qty, 10)
-        };
-
-        const hasStock = Object.values(newStock).some((q) => Number(q) > 0);
-
-        setFormData((prev) => ({
-            ...prev,
-            stock_by_size: newStock,
-            in_stock: hasStock
-        }));
-        setSizeInput({ size: '', qty: 1 });
-    };
-
-    const removeSize = (size) => {
-        const newStock = { ...(formData.stock_by_size || {}) };
-        delete newStock[size];
-        const hasStock = Object.values(newStock).some((q) => Number(q) > 0);
-        setFormData((prev) => ({
-            ...prev,
-            stock_by_size: newStock,
-            in_stock: hasStock
-        }));
-    };
-
-    const handleImageUpload = async (e) => {
-        if (!e.target.files || e.target.files.length === 0) return;
-
-        try {
-            setUploading(true);
-            const file = e.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from('product-images')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-
-            setFormData((prev) => ({
-                ...prev,
-                images: [...(prev.images || []), data.publicUrl]
-            }));
-        } catch (error) {
-            alert('Error uploading image: ' + error.message);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    const removeImage = (index) => {
-        setFormData((prev) => ({
-            ...prev,
-            images: (prev.images || []).filter((_, i) => i !== index)
-        }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-
-        try {
-            const payload = {
-                ...formData,
-                gender: (formData.gender || '').toLowerCase(),
-                price: Number(formData.price),
-                oldPrice: formData.oldPrice ? Number(formData.oldPrice) : null,
-                stock_by_size: formData.stock_by_size || {}
-            };
-
-            delete payload.id; // important: DB trigger generates it
-            if (Array.isArray(payload.images) && payload.images.length === 0) delete payload.images;
-
-            if (isEdit) {
-                await adminService.updateProduct(id, payload);
-            } else {
-                await adminService.createProduct(payload);
-            }
-
-            navigate('/admin/products');
-        } catch (err) {
-            alert('Failed to save: ' + err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="max-w-2xl mx-auto bg-white p-8 rounded shadow">
-            <h2 className="text-2xl font-bold mb-6">{isEdit ? 'Edit Product' : 'New Product'}</h2>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Name</label>
-                        <input
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="w-full border p-2 rounded"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Price (LE)</label>
-                        <input
-                            name="price"
-                            type="number"
-                            value={formData.price}
-                            onChange={handleChange}
-                            className="w-full border p-2 rounded"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Old Price (LE) - Optional</label>
-                        <input
-                            name="oldPrice"
-                            type="number"
-                            value={formData.oldPrice || ''}
-                            onChange={handleChange}
-                            className="w-full border p-2 rounded"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium mb-1">Description</label>
-                    <textarea
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        className="w-full border p-2 rounded"
-                        rows="3"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium mb-1">Gender</label>
-                    <select
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleChange}
-                        className="w-full border p-2 rounded"
-                    >
-                        <option value="women">Women</option>
-                        <option value="men">Men</option>
-                        <option value="kids">Kids</option>
-                        <option value="baby">Baby</option>
-                        <option value="footwear">Footwear</option>
-                        <option value="lingerie">Lingerie</option>
-                    </select>
-                </div>
-
-                {/* Stock by Size */}
-                <div className="border p-4 rounded bg-gray-50">
-                    <h3 className="text-sm font-bold mb-2">Stock by Size</h3>
-                    <div className="flex gap-2 mb-2">
-                        <input
-                            placeholder="Size (e.g. M)"
-                            value={sizeInput.size}
-                            onChange={(e) => setSizeInput({ ...sizeInput, size: e.target.value })}
-                            className="border p-1 text-sm rounded w-20"
-                        />
-                        <input
-                            type="number"
-                            placeholder="Qty"
-                            value={sizeInput.qty}
-                            onChange={(e) => setSizeInput({ ...sizeInput, qty: e.target.value })}
-                            className="border p-1 text-sm rounded w-16"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleCreateSize}
-                            className="px-3 py-1 bg-gray-800 text-white text-xs rounded"
-                        >
-                            Add
-                        </button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                        {Object.entries(formData.stock_by_size || {}).map(([size, qty]) => (
-                            <span
-                                key={size}
-                                className="bg-white border px-2 py-1 text-sm rounded flex items-center gap-2"
-                            >
-                                {size}: {qty}
-                                <button
-                                    type="button"
-                                    onClick={() => removeSize(size)}
-                                    className="text-red-500 font-bold ml-1"
-                                >
-                                    ×
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Images */}
-                <div className="border p-4 rounded bg-gray-50">
-                    <h3 className="text-sm font-bold mb-2">Images</h3>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={uploading}
-                        className="mb-2 text-sm"
-                    />
-                    {uploading && <div className="text-xs text-blue-600">Uploading...</div>}
-
-                    <div className="flex gap-2 overflow-x-auto mt-2">
-                        {(formData.images || []).map((url, idx) => (
-                            <div key={idx} className="relative w-20 h-20 flex-shrink-0">
-                                <img src={url} alt="" className="w-full h-full object-cover rounded" />
-                                <button
-                                    type="button"
-                                    onClick={() => removeImage(idx)}
-                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center"
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-black text-white p-3 rounded font-bold hover:bg-gray-800"
-                >
-                    {loading ? 'Saving...' : 'Save Product'}
-                </button>
-            </form>
-        </div>
-    );
+    return <><PageHeading title={id ? 'Edit product' : 'Create a product'} description="Make every detail count. Build a product your customers will love."><Link className="admin-button" to="/admin/products"><ArrowLeft size={15}/>Back to products</Link></PageHeading><DataState loading={fetching} error={loadError} reload={() => window.location.reload()}/>{!fetching && !loadError && <form onSubmit={save}><fieldset disabled={busy} className="min-w-0"><div className="admin-form-grid"><div className="space-y-6"><section className="admin-panel admin-form-section"><h2>Product details</h2><div className="admin-field"><label htmlFor="product-name">Product name</label><input id="product-name" className="admin-input" name="name" value={form.name} onChange={update} required maxLength={250}/></div><div className="admin-field"><label htmlFor="product-description">Description</label><textarea id="product-description" name="description" value={form.description || ''} onChange={update} rows={5}/></div><div className="grid sm:grid-cols-2 gap-4"><div><label htmlFor="product-category">Category</label><select id="product-category" className="admin-select capitalize" name="gender" value={form.gender} onChange={update}>{[...new Set(['women','men','kids','baby','footwear','lingerie',form.gender].filter(Boolean))].map(g => <option key={g}>{g}</option>)}</select></div><div><label htmlFor="product-sku">SKU</label><input id="product-sku" className="admin-input" name="sku" value={form.sku || ''} onChange={update}/></div></div></section>
+        <section className="admin-panel admin-form-section"><div className="flex justify-between items-center mb-5"><h2 className="!mb-0">Product images</h2><span className="admin-muted">{form.images.length}/30 images</span></div><label className="block border-2 border-dashed border-slate-200 rounded-xl p-7 text-center cursor-pointer"><Upload className="mx-auto text-brand-blue mb-2" size={25}/><span className="admin-link">{uploading ? 'Uploading images…' : 'Choose images to upload'}</span><span className="admin-muted block mt-2">JPEG, PNG, WebP, GIF · max 2 MB each</span><input type="file" className="sr-only" multiple accept="image/jpeg,image/png,image/webp,image/gif" onChange={upload} disabled={uploading || form.images.length >= 30}/></label><div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-5">{form.images.map((url,i) => <div key={`${url}-${i}`} className="relative rounded-lg overflow-hidden border"><img src={url} alt={`Product image ${i+1}`} className="w-full aspect-[3/4] object-cover"/><button type="button" aria-label={`Remove image ${i+1}`} className="absolute top-1 right-1 bg-white rounded-full p-1" onClick={() => setForm({ ...form,images:form.images.filter((_,index) => index !== i) })}><X size={13}/></button><button type="button" className="absolute bottom-1 left-1 right-1 bg-white/95 text-[10px] rounded p-1 flex justify-center gap-1" onClick={() => setForm({ ...form,images:[url,...form.images.filter((_,index) => index !== i)] })}><Star size={12}/>{i === 0 ? 'Cover image' : 'Make cover'}</button></div>)}</div></section></div>
+        <div className="space-y-6"><section className="admin-panel admin-form-section"><h2>Pricing</h2><div className="admin-field"><label htmlFor="product-price">Selling price (EGP)</label><input id="product-price" className="admin-input" name="price" type="number" min="0" step="0.01" value={form.price} onChange={update} required/></div><div className="admin-field"><label htmlFor="product-old-price">Compare-at price (optional)</label><input id="product-old-price" className="admin-input" name="oldPrice" type="number" min="0" step="0.01" value={form.oldPrice ?? ''} onChange={update}/></div><label htmlFor="product-display-order">Display order</label><input id="product-display-order" className="admin-input" name="display_order" type="number" step="1" value={form.display_order ?? 0} onChange={update}/></section>
+        <section className="admin-panel admin-form-section"><h2>Sizes & inventory</h2><p className="admin-muted mb-5">Available units per size. Saved quantities are checked against concurrent checkout updates.</p><div className="space-y-3">{Object.entries(form.stock_by_size || {}).map(([s,q]) => <div className="admin-actions" key={s}><label className="flex-1 !mb-0">{s}</label><input aria-label={`Stock for ${s}`} className="admin-input !w-20" type="number" min="0" step="1" required value={q} onChange={e => setForm({ ...form,stock_by_size:{ ...form.stock_by_size,[s]:e.target.value } })}/><button type="button" aria-label={`Remove size ${s}`} onClick={() => setForm({ ...form,stock_by_size:Object.fromEntries(Object.entries(form.stock_by_size).filter(([key]) => key !== s)) })}><X size={15}/></button></div>)}</div><div className="admin-actions mt-5"><input className="admin-input" aria-label="New size" placeholder="Size" value={size} maxLength={40} onChange={e => setSize(e.target.value)}/><input className="admin-input" aria-label="New size quantity" type="number" min="0" step="1" value={quantity} onChange={e => setQuantity(e.target.value)}/><button type="button" className="admin-button" disabled={!size.trim() || quantity === '' || Number(quantity) < 0 || !Number.isInteger(Number(quantity))} onClick={() => { setForm({ ...form, stock_by_size:{ ...form.stock_by_size,[size.trim()]:Number(quantity) } }); setSize(''); }}>Add</button></div></section></div></div>
+        {error && <p className="admin-alert mt-5" role="alert">{error}</p>}<div className="admin-actions justify-end mt-7"><Link to="/admin/products" className="admin-button">Cancel</Link><button type="submit" className="admin-button button-primary" disabled={busy || uploading}>{busy ? 'Saving product…' : 'Save product'}</button></div></fieldset></form>}</>;
 }
