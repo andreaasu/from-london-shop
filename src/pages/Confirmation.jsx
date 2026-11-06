@@ -48,7 +48,7 @@ export default function Confirmation() {
 
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
                 <span className="font-bold block mb-2 text-black">What happens next?</span>
-                We’ll contact you on WhatsApp or phone shortly to confirm your delivery details.
+                We’ll contact you by email or phone shortly to confirm your delivery details.
             </p>
 
             <button
