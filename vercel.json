@@ -1,7 +1,12 @@
 {
+    "crons": [{ "path": "/api/order-notifications", "schedule": "*/5 * * * *" }],
+    "functions": {
+        "api/place-order.js": { "maxDuration": 60 },
+        "api/order-notifications.js": { "maxDuration": 60 }
+    },
     "rewrites": [
         {
-            "source": "/(.*)",
+            "source": "/((?!api/).*)",
             "destination": "/index.html"
         }
     ]

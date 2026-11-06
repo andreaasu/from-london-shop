@@ -1,5 +1,7 @@
 # React + Vite
 
+Order email notifications: see [deployment, environment variables, database migration and end-to-end testing](docs/order-email-setup.md).
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

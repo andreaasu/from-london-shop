@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test": "node --test tests/*.test.js",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -13,10 +14,10 @@
     "@supabase/supabase-js": "^2.89.0",
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^0.562.0",
+    "nodemailer": "^10.3.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.11.0",
-    "resend": "^6.9.3"
+    "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
