@@ -33,6 +33,28 @@ export function Contact() {
     );
 }
 
+export function ReturnsPolicy() {
+    return (
+        <article className="container mx-auto px-4 py-12 max-w-2xl">
+            <h1 className="text-3xl font-black uppercase mb-6">Inspection &amp; Returns Policy</h1>
+            <p className="text-gray-700 leading-relaxed mb-8">At <strong>From London</strong>, we want you to shop with confidence.</p>
+            <section className="mb-8">
+                <h2 className="text-lg font-bold mb-3">Inspection Upon Delivery</h2>
+                <p className="text-gray-700 leading-relaxed mb-4">Customers may inspect their order in the presence of the courier before accepting it, where permitted by the delivery company.</p>
+                <p className="text-gray-700 leading-relaxed">Please check that the items, sizes, quantities, and condition match your order. If you receive an incorrect or damaged item, please notify us immediately.</p>
+            </section>
+            <section className="mb-8">
+                <h2 className="text-lg font-bold mb-3">Returns &amp; Exchanges</h2>
+                <p className="text-gray-700 leading-relaxed">Once an order has been accepted, all sales are considered final.</p>
+            </section>
+            <section>
+                <h2 className="text-lg font-bold mb-3">Need Assistance?</h2>
+                <p className="text-gray-700 leading-relaxed">Contact us at <a href="mailto:storefromlondon@gmail.com" className="underline text-brand-blue break-words">storefromlondon@gmail.com</a> for any concerns regarding your order.</p>
+            </section>
+        </article>
+    );
+}
+
 // NotFound.jsx
 import { Link } from 'react-router-dom';
 export function NotFound() {

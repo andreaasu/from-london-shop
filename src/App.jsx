@@ -32,7 +32,7 @@ import AdminRoute from './routes/AdminRoute';
 
 // Import static pages from the single file we created (named exports)
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { About, Contact, NotFound } from './pages/StaticPages';
+import { About, Contact, ReturnsPolicy, NotFound } from './pages/StaticPages';
 
 const PageLoader = () => (
     <div style={{
@@ -96,6 +96,7 @@ function App() {
                   } />
                   <Route path="about" element={<About />} />
                   <Route path="contact" element={<Contact />} />
+                  <Route path="returns" element={<ReturnsPolicy />} />
                 </Route>
 
                 {/* Admin Login */}

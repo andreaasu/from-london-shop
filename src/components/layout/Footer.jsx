@@ -18,7 +18,7 @@ export default function Footer() {
                         <li><Link to="/contact" className="hover:underline">Contact Us</Link></li>
                         <li><Link to="/about" className="hover:underline">About Us</Link></li>
                         {/* <li><Link to="/faq" className="hover:underline">FAQs</Link></li> */}
-                        {/* <li><Link to="/returns" className="hover:underline">Returns</Link></li> */}
+                        <li><Link to="/returns" className="hover:underline">Inspection &amp; Returns Policy</Link></li>
                     </ul>
                 </div>
 
