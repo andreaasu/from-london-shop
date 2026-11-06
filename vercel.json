@@ -1,5 +1,5 @@
 {
-    "crons": [{ "path": "/api/order-notifications", "schedule": "*/5 * * * *" }],
+    "crons": [{ "path": "/api/order-notifications", "schedule": "0 0 * * *" }],
     "functions": {
         "api/place-order.js": { "maxDuration": 60 },
         "api/order-notifications.js": { "maxDuration": 60 }

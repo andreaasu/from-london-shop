@@ -11,7 +11,7 @@ are unchanged.
 **Do not apply the migration yet.** Its live `place_order` and trigger compatibility
 review is still pending. Nothing has been applied to Supabase. The existing local
 queue migration remains at `supabase/migrations/202611060001_order_notifications.sql`;
-only its retry comment and provider name in an error message were updated for this SMTP switch. It still
+its local retry cutoff now allows seven days for daily cron recovery. It still
 includes permission revocations and a deferred trigger; those require the outstanding
 review before deployment. A database trigger error can roll back order creation,
 although an email/SMTP failure after order commit cannot.
@@ -28,7 +28,7 @@ avoid a schema change; new SMTP sends store their Message-ID there.
    **2-Step Verification**.
 3. Open [App Passwords](https://myaccount.google.com/apppasswords). Create one named
    `From London Vercel` and copy the generated 16-character password.
-4. Add it directly to Vercel as `GMAIL_APP_PASSWORD`. Do not use your regular Gmail
+4. Add it directly to Vercel as `SMTP_APP_PASSWORD`. Do not use your regular Gmail
    password, commit it, put it in a `VITE_` variable, or send it in chat.
 
 If App Passwords is unavailable, check Google's account restrictions: security-key-only
@@ -45,8 +45,8 @@ In **Project → Settings → Environment Variables**, configure:
 
 | Variable | Value |
 | --- | --- |
-| `GMAIL_USER` | `storefromlondon@gmail.com` |
-| `GMAIL_APP_PASSWORD` | Generated Gmail App Password (spaces are stripped server-side) |
+| `SMTP_USER` | `storefromlondon@gmail.com` |
+| `SMTP_APP_PASSWORD` | Generated Gmail App Password (spaces are stripped server-side) |
 | `EMAIL_FROM` | `From London <storefromlondon@gmail.com>` |
 | `ORDER_NOTIFICATION_EMAIL` | `storefromlondon@gmail.com` |
 | `CRON_SECRET` | Existing long random retry-endpoint secret, at least 32 characters |
@@ -71,14 +71,18 @@ is imported only by the server helper and does not enter the browser bundle.
 
 ## Retries and duplicate protection
 
-The protected `/api/order-notifications` GET endpoint and five-minute Vercel Cron
-schedule remain unchanged. Each request claims at most two jobs; each SMTP submission
+The protected `/api/order-notifications` GET endpoint runs daily using the Hobby-compatible
+`0 0 * * *` Vercel Cron schedule (UTC). Normal orders still attempt both emails immediately.
+Each scheduled request claims at most two jobs; each SMTP submission
 has an 18-second overall application timeout. Jobs that have not started SMTP can be
 recovered through their existing five-minute leases. Retries use exponential backoff,
-capped at one hour, and the existing 20-hour maximum automatic retry window remains.
+capped at one hour. The pending local migration now allows seven days of automatic
+retry eligibility so the daily schedule can recover failures. No live database setting
+was changed. If your database still has the old 20-hour cutoff, daily recovery will
+expire jobs before their next attempt; that requires a separately approved database update.
 
-The five-minute Vercel Cron schedule requires Pro/Enterprise. On Hobby, remove the
-`crons` entry before deployment and use an external scheduler every five minutes:
+Daily recovery is deliberately low volume (two jobs per invocation). For faster or
+higher-volume recovery, an authorized external scheduler may call:
 
 ```text
 GET https://your-deployment/api/order-notifications
@@ -162,14 +166,14 @@ a trusted provider webhook and an updated paid snapshot before confirmation.
 - `package.json`, `package-lock.json`: replace Resend with Nodemailer.
 - `tests/order-notifications.test.js`: SMTP mocks, retries, TLS configuration and
   ambiguous-outcome duplicate protection.
-- `supabase/migrations/202611060001_order_notifications.sql`: comment/error wording only; no schema,
-  trigger or permission changes for this switch. Not applied.
+- `supabase/migrations/202611060001_order_notifications.sql`: local retry cutoff of seven
+  days for daily cron. No table, trigger or permission changes for this switch. Not applied.
 - This guide replaces the former Resend/domain instructions.
 
-The templates, checkout endpoint, retry endpoint, cron configuration and frontend
-remain unchanged. No credentials were added to local environment files or Vercel,
+The templates, retry endpoint and frontend remain unchanged. Cron is daily; checkout
+still isolates notification failures from saved order responses. No credentials were added to local environment files or Vercel,
 and no real emails were sent as part of implementation.
 
-Verification: all 11 notification tests passed, production build passed, changed-code
+Verification: all 14 notification/checkout tests passed, production build passed, changed-code
 ESLint passed and `git diff --check` passed. Gmail authentication and inbox delivery
 still require your App Password and a configured deployment.

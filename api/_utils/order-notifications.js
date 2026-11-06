@@ -6,11 +6,11 @@ export function customerCanBeConfirmed(order) {
     return ['cod', 'cash_on_delivery', 'cash on delivery'].includes(method) || order.payment_status === 'paid';
 }
 
-export function createGmailTransport(env) {
-    if (!env.GMAIL_USER || !env.GMAIL_APP_PASSWORD) return null;
+export function createGmailTransport(env = process.env) {
+    if (!env.SMTP_USER?.trim() || !env.SMTP_APP_PASSWORD?.replace(/\s/g, '')) return null;
     return nodemailer.createTransport({
         host: 'smtp.gmail.com', port: 465, secure: true,
-        auth: { user: env.GMAIL_USER, pass: env.GMAIL_APP_PASSWORD.replace(/\s/g, '') },
+        auth: { user: env.SMTP_USER.trim(), pass: env.SMTP_APP_PASSWORD.replace(/\s/g, '') },
         connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
         disableFileAccess: true, disableUrlAccess: true,
     });
@@ -27,7 +27,8 @@ export function safeToRetrySmtp(error) {
 export async function processOrderNotifications(db, { orderId = null, limit = 10, env = process.env, client } = {}) {
     const { data: jobs, error } = await db.rpc('claim_order_notifications', { p_order_id: orderId, p_limit: limit });
     if (error) throw new Error('Notification queue unavailable');
-    const transport = client || createGmailTransport(env);
+    // No SMTP initialization at module import or before order creation.
+    let transport = client;
     const summary = { sent: 0, failed: 0, skipped: 0 };
     for (const job of jobs || []) {
         const save = async fields => {
@@ -38,6 +39,7 @@ export async function processOrderNotifications(db, { orderId = null, limit = 10
         let submissionStarted = false;
         let accepted = false;
         try {
+            transport ||= createGmailTransport(env);
             const order = job.snapshot.order;
             if (job.kind === 'customer' && !order.email) {
                 await save({ status: 'skipped', last_error: 'No saved customer email', lease_until: null });
@@ -48,7 +50,7 @@ export async function processOrderNotifications(db, { orderId = null, limit = 10
                 await save({ status: 'review', last_error: 'Prepaid order requires verified payment', lease_until: null });
                 continue;
             }
-            if (!transport || !env.GMAIL_USER || !env.EMAIL_FROM || (job.kind === 'admin' && !env.ORDER_NOTIFICATION_EMAIL)) throw new Error('Missing email configuration');
+            if (!transport || !env.SMTP_USER || !env.EMAIL_FROM || (job.kind === 'admin' && !env.ORDER_NOTIFICATION_EMAIL)) throw new Error('Missing email configuration');
             const message = job.message || {
                 from: env.EMAIL_FROM,
                 to: job.kind === 'admin' ? env.ORDER_NOTIFICATION_EMAIL : order.email,
@@ -76,7 +78,7 @@ export async function processOrderNotifications(db, { orderId = null, limit = 10
             accepted = Boolean(result.accepted?.length);
             if (!accepted) throw Object.assign(new Error('SMTP recipient not accepted'), result.rejected?.length ? { responseCode: 550 } : {});
             // Preserve the existing column name to avoid a schema change. It now
-            // stores Nodemailer's Message-ID rather than a Resend provider ID.
+            // stores Nodemailer's Message-ID in the existing legacy column.
             await save({ status: 'sent', resend_id: result.messageId || mail.messageId, sent_at: new Date().toISOString(), last_error: null, lease_until: null });
             summary.sent++;
         } catch (err) {

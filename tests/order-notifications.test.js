@@ -7,7 +7,7 @@ const snapshot = {
     order: { id: 'saved-id', order_code: 'FL-123', customer_name: '<script>test</script>', email: 'customer@example.test', phone: '123', address: '<b>Street</b>', city: 'Cairo', total: 300, created_at: '2026-11-06T10:00:00Z', status: 'pending' },
     items: [{ product_name: 'Shirt & coat', qty: 2, unit_price: 150, size: 'M' }],
 };
-const env = { GMAIL_USER: 'store@example.test', GMAIL_APP_PASSWORD: 'test', EMAIL_FROM: 'Store <store@example.test>', ORDER_NOTIFICATION_EMAIL: 'owner@example.test' };
+const env = { SMTP_USER: 'store@example.test', SMTP_APP_PASSWORD: 'test', EMAIL_FROM: 'Store <store@example.test>', ORDER_NOTIFICATION_EMAIL: 'owner@example.test' };
 function fixture() {
     const jobs = ['customer', 'admin'].map((kind, i) => ({ id: i + 1, kind, snapshot, status: 'pending', attempts: 0, lease_token: `lease-${i}` }));
     const db = {
@@ -131,13 +131,19 @@ test('failure to persist request prevents sending, and queued prepaid orders are
 });
 
 test('Gmail transport enforces TLS and uses app password without spaces', () => {
-    const transport = createGmailTransport({ ...env, GMAIL_APP_PASSWORD: 'abcd efgh ijkl mnop' });
+    const transport = createGmailTransport({ ...env, SMTP_APP_PASSWORD: 'abcd efgh ijkl mnop' });
     assert.equal(transport.options.host, 'smtp.gmail.com');
     assert.equal(transport.options.port, 465);
     assert.equal(transport.options.secure, true);
     assert.equal(transport.options.auth.pass, 'abcdefghijklmnop');
     assert.equal(transport.options.disableFileAccess, true);
     transport.close();
+});
+
+test('missing or blank SMTP credentials do not initialize a mail transport', () => {
+    assert.equal(createGmailTransport({}), null);
+    assert.equal(createGmailTransport({ SMTP_USER: 'store@example.test' }), null);
+    assert.equal(createGmailTransport({ SMTP_USER: 'store@example.test', SMTP_APP_PASSWORD: '   ' }), null);
 });
 
 test('only definite rejection and pre-submission failures can be automatically retried', () => {

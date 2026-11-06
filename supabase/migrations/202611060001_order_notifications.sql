@@ -59,9 +59,9 @@ create function public.claim_order_notifications(p_order_id text default null, p
 returns setof public.order_notifications
 language plpgsql security definer set search_path = '' as $$
 begin
-  -- Bound automatic retries to 20h. SMTP submissions are held in review by the worker.
+  -- Allow daily cron recovery for seven days. Uncertain SMTP sends remain in review.
   update public.order_notifications set status = 'review', last_error = 'Retry window exhausted; reconcile with Gmail before retrying'
-    where status in ('pending','sending') and first_attempt_at < now() - interval '20 hours'
+    where status in ('pending','sending') and first_attempt_at < now() - interval '7 days'
     and (lease_until is null or lease_until < now());
   return query
     with candidates as (
