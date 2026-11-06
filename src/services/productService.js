@@ -73,9 +73,14 @@ export const productService = {
 
     async getFeaturedProducts() {
         if (USE_SUPABASE && supabase) {
-            const { data, error } = await supabase.from("products").select("*");
+            let { data, error } = await supabase.from("products").select("*")
+                .eq('is_featured', true).order('featured_order').order('id').limit(4);
+            // Keep the current homepage working until the separate migration is applied.
+            if (error?.code === '42703' || error?.code === 'PGRST204') {
+                ({ data, error } = await supabase.from('products').select('*').order('id').limit(4));
+            }
             if (error) throw error;
-            return (data || []).map(normalizeProduct).filter(p => p.is_visible !== false).slice(0, 8);
+            return (data || []).map(normalizeProduct).filter(p => p.is_visible !== false);
         } else {
             await delay(300);
             throw new Error("The catalogue is currently unavailable. Please try again later.");
