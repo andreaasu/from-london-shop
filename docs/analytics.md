@@ -2,7 +2,17 @@
 
 Vercel builds read `VITE_GA_MEASUREMENT_ID` and `VITE_CLARITY_PROJECT_ID`. Redeploy after changing either value. No SDK or database changes are needed.
 
-Both scripts are blocked until the visitor accepts optional analytics. The choice expires after 180 days. The fixed Privacy settings button allows rejection later; withdrawal reloads the page to unload tracking listeners. Cart storage remains intact. Rejected activity is never replayed after consent.
+The compact consent notice has equally visible Accept and Decline buttons; it never blocks shopping. Privacy settings and the analytics disclosure are in the footer. Keyboard users can open settings, close with Escape, and return focus to the footer button. The choice expires after 180 days. Withdrawal reloads the page to unload tracking listeners. Cart storage remains intact. Rejected activity is never replayed after consent. Global Privacy Control and Do Not Track keep optional analytics off.
+
+## Regional notice policy
+
+`/api/analytics-policy` uses Vercel's edge-provided country header, not browser language, timezone, a third-party geolocation service, or precise location. Responses are private/no-store and contain only a consent-required boolean. Tracking stays off while the policy resolves unless there is an existing explicit acceptance. Unknown countries, local development, errors, and unapproved regions require opt-in. No notice appears when neither analytics ID is configured.
+
+Set the **server-side Vercel variable** `ANALYTICS_OPT_OUT_COUNTRIES` to a comma-separated list of country codes where your business has established that these analytics may run without explicit consent, then redeploy. There is deliberately no assumed worldwide exemption: the store's applicable law, session recordings, and international transfers can impose requirements beyond a visitor's country. The EEA, UK, Switzerland and listed EU territories always require opt-in even if mistakenly included. Until an approved list is configured, unknown legal situations retain the compact notice.
+
+Approved regions get no automatic popup: GA4 may run using analytics storage, while Clarity receives a denied storage signal and uses its cookieless behavior until explicit acceptance through footer settings. Inferred permission is never saved as an explicit choice. A saved Decline and browser privacy signals override regional defaults. Customer-content masking and admin exclusion remain unchanged. Check Clarity's current project settings and cookieless functionality before relying on full recordings/unique-visitor metrics for that mode.
+
+Verify the policy with a fresh browser in an approved region (no popup), an opt-in region (compact notice; no tracking until Accept), and an unknown/offline region (opt-in fallback). Test saved Decline and browser GPC in both modes. An existing explicit choice suppresses repeat notices.
 
 GA4 automatically measures users and sessions after consent. The app sends SPA `page_view`, `view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, and `purchase` events. Ecommerce items contain only product ID, numeric price and quantity; currency is EGP. Quantity changes send only the added/removed quantity. Purchases run exclusively after the existing order API returns a confirmed Supabase order ID, using its total (delivery is collected separately). Item prices reflect the cart snapshot. Confirmation-page refreshes never send purchases. A browser-local order-ID ledger and GA4 transaction IDs provide duplicate protection. This is browser tracking: denied consent, blockers, cleared storage, or interrupted network delivery can affect reporting; it is not an order accounting system.
 

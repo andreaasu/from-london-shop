@@ -81,3 +81,49 @@ test('Clarity loads once after consent and receives the consent signal', () => {
     assert.equal(win['ga-disable-G-TEST'], true);
     assert.equal([...win.clarity.q.at(-1)][0], 'stop');
 });
+
+test('approved regional policy skips opt-in without storing a fabricated user choice', async () => {
+    const { analytics, win } = setup();
+    win.location.search = '';
+    win.location.hash = '';
+    let requests = 0;
+    win.fetch = async () => { requests++; return { ok: true, json: async () => ({ requiresConsent: false }) }; };
+    await Promise.all([analytics.resolvePolicy(), analytics.resolvePolicy()]);
+    assert.equal(requests, 1);
+    assert.equal(analytics.getConsent(), true);
+    assert.equal(analytics.getPolicy(), 'optional');
+    assert.equal(win.localStorage.getItem('from-london-analytics-consent-v1'), null);
+    analytics.pageView('regional');
+    assert.equal(events(win).length, 1);
+    // Explicit consent is not invented for Clarity: use its cookieless mode.
+    assert.equal(win.clarity.q[0][1].analytics_Storage, 'denied');
+    analytics.setConsent(false);
+    assert.equal(analytics.getConsent(), false);
+});
+
+test('policy failures default to opt-in and explicit rejection wins over regional defaults', async () => {
+    const { analytics, win } = setup();
+    win.fetch = async () => { throw new Error('Offline'); };
+    await analytics.resolvePolicy();
+    assert.equal(analytics.getPolicy(), 'required');
+    assert.equal(analytics.getConsent(), null);
+    analytics.pageView('offline');
+    assert.equal(events(win).length, 0);
+    analytics.setConsent(false);
+    const reloaded = createAnalytics(win, {}, 'G-TEST', '');
+    win.fetch = async () => ({ ok: true, json: async () => ({ requiresConsent: false }) });
+    await reloaded.resolvePolicy();
+    assert.equal(reloaded.getConsent(), false);
+});
+
+test('browser privacy opt-out prevents tracking even in an approved region', async () => {
+    const { win, doc, scripts } = setup();
+    win.navigator = { globalPrivacyControl: true };
+    win.fetch = async () => ({ ok: true, json: async () => ({ requiresConsent: false }) });
+    const analytics = createAnalytics(win, doc, 'G-TEST', 'clarity-test');
+    await analytics.resolvePolicy();
+    analytics.setConsent(true);
+    analytics.pageView('privacy');
+    assert.equal(analytics.getConsent(), false);
+    assert.equal(scripts.length, 0);
+});
