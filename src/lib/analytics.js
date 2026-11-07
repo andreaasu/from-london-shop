@@ -17,6 +17,10 @@ export function createAnalytics(win, doc, gaId, clarityId) {
         const saved = JSON.parse(win.localStorage.getItem(CONSENT_KEY));
         if (saved && Date.now() - saved.at < 180 * 86400000) consent = saved.accepted === true;
     } catch { /* Storage may be disabled. Default to no tracking. */ }
+    const privacyOptOut = win.navigator?.globalPrivacyControl === true || win.navigator?.doNotTrack === '1';
+    let policy = 'pending';
+    let policyRequest;
+    const effectiveConsent = () => privacyOptOut ? false : (consent ?? (policy === 'optional' ? true : null));
     let started = false;
     let clarityStarted = false;
     let clarityStopped = false;
@@ -45,7 +49,7 @@ export function createAnalytics(win, doc, gaId, clarityId) {
         page_title: 'From London',
     });
     const start = () => {
-        if (consent !== true || !allowed()) return;
+        if (effectiveConsent() !== true || !allowed()) return;
         if (gaId && !started) {
             started = true;
             win.dataLayer = win.dataLayer || [];
@@ -65,17 +69,17 @@ export function createAnalytics(win, doc, gaId, clarityId) {
         if (clarityId && !clarityStarted && !win.location.search && !win.location.hash) {
             clarityStarted = true;
             win.clarity = win.clarity || function () { (win.clarity.q = win.clarity.q || []).push(arguments); };
-            win.clarity('consentv2', { analytics_Storage: 'granted', ad_Storage: 'denied' });
+            win.clarity('consentv2', { analytics_Storage: consent === true ? 'granted' : 'denied', ad_Storage: 'denied' });
             script('from-london-clarity', `https://www.clarity.ms/tag/${encodeURIComponent(clarityId)}`);
         }
         if (clarityStarted && clarityStopped && !win.location.search && !win.location.hash) {
             win.clarity('start');
-            win.clarity('consentv2', { analytics_Storage: 'granted', ad_Storage: 'denied' });
+            win.clarity('consentv2', { analytics_Storage: consent === true ? 'granted' : 'denied', ad_Storage: 'denied' });
             clarityStopped = false;
         }
     };
     const event = (name, fields) => {
-        if (consent !== true || !allowed() || !gaId) return false;
+        if (effectiveConsent() !== true || !allowed() || !gaId) return false;
         try {
             start();
             win.gtag('event', name, { ...fields, ...pageFields() });
@@ -83,10 +87,25 @@ export function createAnalytics(win, doc, gaId, clarityId) {
         } catch { return false; } // Optional analytics cannot block shopping.
     };
     return {
-        getConsent: () => consent,
+        getConsent: effectiveConsent,
+        getPolicy: () => policy,
+        isPrivacyOptOut: () => privacyOptOut,
+        isConfigured: () => Boolean(gaId || clarityId),
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+        resolvePolicy() {
+            if (policyRequest) return policyRequest;
+            policyRequest = Promise.resolve().then(async () => {
+                try {
+                    const response = await win.fetch('/api/analytics-policy', { credentials: 'same-origin', cache: 'no-store' });
+                    const result = response.ok ? await response.json() : null;
+                    policy = result?.requiresConsent === false ? 'optional' : 'required';
+                } catch { policy = 'required'; }
+                listeners.forEach(listener => listener());
+            });
+            return policyRequest;
+        },
         setConsent(accepted) {
-            consent = accepted === true;
+            consent = accepted === true && !privacyOptOut;
             try { win.localStorage.setItem(CONSENT_KEY, JSON.stringify({ accepted: consent, at: Date.now() })); } catch { /* Keep the choice in memory. */ }
             if (!consent) {
                 if (started) {
@@ -100,6 +119,7 @@ export function createAnalytics(win, doc, gaId, clarityId) {
                 // A reload unloads third-party listeners as well as their scripts.
                 if (started || clarityStarted) win.location.reload();
             }
+            if (consent && clarityStarted) win.clarity('consentv2', { analytics_Storage: 'granted', ad_Storage: 'denied' });
             lastPage = '';
             listeners.forEach(listener => listener());
         },
@@ -113,7 +133,7 @@ export function createAnalytics(win, doc, gaId, clarityId) {
                 lastPage = '';
                 return;
             }
-            if (consent !== true || key === lastPage) return;
+            if (effectiveConsent() !== true || key === lastPage) return;
             win[`ga-disable-${gaId}`] = false;
             start();
             if (started) win.gtag('set', pageFields());
@@ -125,7 +145,7 @@ export function createAnalytics(win, doc, gaId, clarityId) {
             return event(name, { currency: 'EGP', value: items.reduce((sum, item) => sum + item.price * item.quantity, 0), items });
         },
         purchase(order, products) {
-            if (consent !== true || !order?.orderId || !Number.isFinite(Number(order.total))) return;
+            if (effectiveConsent() !== true || !order?.orderId || !Number.isFinite(Number(order.total))) return;
             const id = String(order.orderId);
             let saved = [];
             try {
