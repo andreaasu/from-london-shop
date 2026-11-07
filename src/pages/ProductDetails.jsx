@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { analytics } from '../lib/analytics';
+import { useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { productService } from "../services/productService";
@@ -18,6 +19,13 @@ function ProductDetailsView({ id }) {
     const { toggleWishlist, isInWishlist } = useWishlist();
 
     const [product, setProduct] = useState(null);
+    const consent = useSyncExternalStore(analytics.subscribe, analytics.getConsent);
+    const viewed = useRef(false);
+    useEffect(() => {
+        if (product && consent === true && !viewed.current) {
+            viewed.current = analytics.ecommerce('view_item', [{ ...product, quantity: 1 }]);
+        }
+    }, [product, consent]);
     const [loading, setLoading] = useState(true);
 
     const [selectedSize, setSelectedSize] = useState(null);

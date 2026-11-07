@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { analytics } from '../lib/analytics';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { orderService } from '../services/orderService';
@@ -20,6 +21,14 @@ export default function Checkout() {
     const [loading, setLoading] = useState(false);
     const [orderPlaced, setOrderPlaced] = useState(false);
 
+    const consent = useSyncExternalStore(analytics.subscribe, analytics.getConsent);
+    const checkoutTracked = useRef(false);
+    useEffect(() => {
+        if (cartItems.length && consent === true && !checkoutTracked.current) {
+            checkoutTracked.current = analytics.ecommerce('begin_checkout', cartItems);
+        }
+    }, [cartItems, consent]);
+
     if (!orderPlaced && cartItems.length === 0) return <Navigate to="/bag" />;
 
     // const shippingCost = subtotal > 1000 ? 0 : 50;
@@ -33,6 +42,9 @@ export default function Checkout() {
 
         try {
             const result = await orderService.placeOrder(formData, cartItems);
+            // The API returns only after the Supabase place_order RPC succeeds.
+            // Keep analytics failures isolated from order completion and emails.
+            try { analytics.purchase(result, cartItems); } catch { /* Optional analytics. */ }
             setOrderPlaced(true);
             navigate('/order-confirmation', {
                 state: {

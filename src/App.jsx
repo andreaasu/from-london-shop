@@ -1,3 +1,4 @@
+import AnalyticsConsent from "./components/common/AnalyticsConsent";
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
 import ProductDetails from "./pages/ProductDetails";
@@ -56,6 +57,7 @@ function App() {
         <FilterProvider>
           <WishlistProvider>
             <CartProvider>
+              <AnalyticsConsent />
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Layout />}>

@@ -1,3 +1,4 @@
+import { analytics } from '../lib/analytics';
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const CartContext = createContext();
@@ -38,17 +39,29 @@ export const CartProvider = ({ children }) => {
             if (existing) return prev.map(item => item === existing ? { ...item, quantity: item.quantity + 1 } : item);
             return [...prev, { ...product, selectedSize: size, selectedColor: color, quantity: 1 }];
         });
+        analytics.ecommerce('add_to_cart', [{ ...product, quantity: 1 }]);
         setIsCartOpen(true);
         return { success: true };
     };
 
     const removeFromCart = (id, size, color) => {
+        const removed = cartItems.find(item => item.id === id && item.selectedSize === size && item.selectedColor === color);
+        if (removed) analytics.ecommerce('remove_from_cart', [removed]);
         setCartItems(prev => prev.filter(item =>
             !(item.id === id && item.selectedSize === size && item.selectedColor === color)
         ));
     };
 
     const updateQuantity = (id, size, color, delta) => {
+        const current = cartItems.find(item => item.id === id && item.selectedSize === size && item.selectedColor === color);
+        if (current && delta !== 0) {
+            const otherQuantity = cartItems.filter(item => item !== current && item.id === id && item.selectedSize === size)
+                .reduce((sum, item) => sum + item.quantity, 0);
+            const newQty = current.quantity + delta;
+            if (newQty > 0 && newQty + otherQuantity <= (current.stock_by_size?.[size] ?? 0)) {
+                analytics.ecommerce(delta > 0 ? 'add_to_cart' : 'remove_from_cart', [{ ...current, quantity: Math.abs(delta) }]);
+            }
+        }
         setCartItems(prev => prev.map(item => {
             if (item.id === id && item.selectedSize === size && item.selectedColor === color) {
                 const newQty = item.quantity + delta;
