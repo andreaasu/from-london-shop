@@ -33,6 +33,27 @@ export default async function handler(req) {
             if (req.method === 'PUT' && !id) throw fail('Product ID is required.');
             const body = await req.json();
             const payload = productPayload(body, req.method === 'POST');
+            // Always append new products, regardless of the form's default value.
+            // Moving a product to another category also places it at that category's end.
+            let append = req.method === 'POST';
+            if (!append && 'gender' in payload) {
+                const { data: current, error } = await db.from('products').select('gender').eq('id', id).single();
+                if (error) throw error;
+                append = current.gender !== payload.gender;
+            }
+            if (append) {
+                const category = payload.gender || null;
+                const peers = await allRows(() => {
+                    const query = db.from('products').select('id, display_order').order('id');
+                    return category === null ? query.is('gender', null) : query.eq('gender', category);
+                });
+                payload.display_order = Math.max(0, ...peers.map(p => Number(p.display_order) || 0)) + 1;
+                // Legacy rows without positions must remain ahead of the new arrival.
+                for (const peer of peers.filter(p => p.display_order == null)) {
+                    const { error } = await db.from('products').update({ display_order: payload.display_order++ }).eq('id', peer.id);
+                    if (error) throw error;
+                }
+            }
             let query;
             if (req.method === 'POST') query = db.from('products').insert(payload);
             else {

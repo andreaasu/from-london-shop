@@ -8,6 +8,7 @@ import SortDropdown from '../components/features/SortDropdown';
 import { useFilters } from '../context/FilterContext';
 import { productService } from '../services/productService';
 import { sortSizes } from '../utils/sortSizes';
+import { compareProductOrder } from '../utils/productOrder';
 
 export default function Shop() {
     const [products, setProducts] = useState([]);
@@ -180,11 +181,13 @@ export default function Shop() {
             if (filters.sort === 'price-low-high') return priceA - priceB;
             if (filters.sort === 'price-high-low') return priceB - priceA;
 
-            const orderA = Number(a.display_order ?? 0);
-            const orderB = Number(b.display_order ?? 0);
-            if (orderA !== orderB) return orderB - orderA;
-
-            return 0; // 'newest'
+            // Keep this category's own products ahead of shared unisex items.
+            if (filters.gender) {
+                const ownCategory = p => (p.gender || '').toLowerCase().trim() === filters.gender.toLowerCase().trim();
+                const categoryDifference = Number(ownCategory(b)) - Number(ownCategory(a));
+                if (categoryDifference) return categoryDifference;
+            }
+            return compareProductOrder(a, b);
         });
     }, [products, filters, matchesBaseFilters]); // availableSizes dependency not strictly needed for logic but good for consistency
 
