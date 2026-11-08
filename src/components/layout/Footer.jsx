@@ -57,7 +57,7 @@ export default function Footer() {
                             <Facebook size={20} />
                         </a>                        {/* <a href="#" className="hover:text-black"><Twitter size={20} /></a> */}
                     </div>
-                    <p className="mb-3 text-xs leading-relaxed text-gray-600">We use Google Analytics and Microsoft Clarity for shopping analytics and masked recordings, subject to your privacy settings. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">Google privacy</a> ? <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noopener noreferrer" className="underline">Microsoft privacy</a>.</p>
+                    <p className="mb-3 text-xs leading-relaxed text-gray-600">We use Google Analytics and Microsoft Clarity for shopping analytics, subject to your privacy settings. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">Google privacy</a> ? <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noopener noreferrer" className="underline">Microsoft privacy</a>.</p>
                     <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} From London. All rights reserved.</p>
                 </div>
             </div>
