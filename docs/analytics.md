@@ -1,6 +1,8 @@
 # Analytics
 
-Vercel builds read `VITE_GA_MEASUREMENT_ID` and `VITE_CLARITY_PROJECT_ID`. Redeploy after changing either value. No SDK or database changes are needed.
+Vercel builds read `VITE_GA_MEASUREMENT_ID`, `VITE_CLARITY_PROJECT_ID`, and `VITE_META_PIXEL_ID`. Redeploy after changing a value. No SDK or database changes are needed.
+
+Meta uses browser image-pixel requests to `https://www.facebook.com/tr/` for `PageView`, `ViewContent`, `AddToCart`, `InitiateCheckout`, and `Purchase`, through the existing consent and SPA hooks. Product events include product IDs, quantities, item prices, EGP currency, and value; Purchase uses the confirmed order total. A separate browser-local order ledger and stable event ID prevent repeat purchases independently of GA4. Requests use sanitized page paths and no HTTP referrer. No customer fields, advanced matching, automatic DOM/form events, Meta SDK, or Conversions API are used. Meta still receives normal browser network information such as the visitor's IP address. Pixel Helper may not detect this image transport; verify in DevTools Network (`facebook.com/tr`) and Meta Events Manager Test Events. Disable automatic events and automatic advanced matching in Meta Events Manager, and do not install another Meta tag through Vercel or Tag Manager. Blockers or interrupted requests can prevent delivery; the ledger records attempted sends, not Meta acknowledgements.
 
 The compact consent notice has equally visible Accept and Decline buttons; it never blocks shopping. Privacy settings and the analytics disclosure are in the footer. Keyboard users can open settings, close with Escape, and return focus to the footer button. The choice expires after 180 days. Withdrawal reloads the page to unload tracking listeners. Cart storage remains intact. Rejected activity is never replayed after consent. Global Privacy Control and Do Not Track keep optional analytics off.
 

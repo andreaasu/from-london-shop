@@ -1,5 +1,6 @@
 const CONSENT_KEY = 'from-london-analytics-consent-v1';
 const PURCHASE_KEY = 'from-london-tracked-orders-v1';
+const META_PURCHASE_KEY = 'from-london-meta-tracked-orders-v1';
 
 // Only explicitly approved fields enter analytics. Never pass customer objects,
 // form values, router state, query strings, hashes, or document.referrer.
@@ -11,7 +12,7 @@ export function ecommerceItems(products) {
     }));
 }
 
-export function createAnalytics(win, doc, gaId, clarityId) {
+export function createAnalytics(win, doc, gaId, clarityId, metaId) {
     let consent = null;
     try {
         const saved = JSON.parse(win.localStorage.getItem(CONSENT_KEY));
@@ -26,6 +27,9 @@ export function createAnalytics(win, doc, gaId, clarityId) {
     let clarityStopped = false;
     let lastPage = '';
     const sentPurchases = new Set();
+    const sentMetaPurchases = new Set();
+    const pendingPixels = new Set();
+    let pixelSequence = 0;
     const listeners = new Set();
     const script = (id, src) => {
         if (doc.getElementById(id)) return;
@@ -47,6 +51,35 @@ export function createAnalytics(win, doc, gaId, clarityId) {
         page_location: win.location.origin + safePath(),
         page_referrer: '',
         page_title: 'From London',
+    });
+    // Image pixels deliberately avoid the SDK's automatic URL/referrer, form,
+    // and advanced-matching collection. Only this allowlisted payload is sent.
+    const metaEvent = (name, fields = {}, eventId) => {
+        if (!metaId || effectiveConsent() !== true || !allowed()) return false;
+        try {
+            const params = new URLSearchParams({
+                id: String(metaId), ev: name, dl: win.location.origin + safePath(),
+                rl: '', if: 'false', noscript: '1', ts: String(Date.now()),
+                // Distinct legitimate actions must not share a cached image URL.
+                r: String(++pixelSequence),
+            });
+            for (const [key, value] of Object.entries(fields)) {
+                params.set(`cd[${key}]`, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            }
+            if (eventId) params.set('eid', eventId);
+            const pixel = doc.createElement('img');
+            pixel.referrerPolicy = 'no-referrer';
+            pendingPixels.add(pixel);
+            pixel.onload = pixel.onerror = () => pendingPixels.delete(pixel);
+            pixel.src = `https://www.facebook.com/tr/?${params}`;
+            return true;
+        } catch { return false; }
+    };
+    const metaFields = (items, value) => ({
+        content_type: 'product', content_ids: items.map(item => item.item_id),
+        contents: items.map(item => ({ id: item.item_id, quantity: item.quantity, item_price: item.price })),
+        num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+        currency: 'EGP', value,
     });
     const start = () => {
         if (effectiveConsent() !== true || !allowed()) return;
@@ -90,7 +123,7 @@ export function createAnalytics(win, doc, gaId, clarityId) {
         getConsent: effectiveConsent,
         getPolicy: () => policy,
         isPrivacyOptOut: () => privacyOptOut,
-        isConfigured: () => Boolean(gaId || clarityId),
+        isConfigured: () => Boolean(gaId || clarityId || metaId),
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
         resolvePolicy() {
             if (policyRequest) return policyRequest;
@@ -139,10 +172,15 @@ export function createAnalytics(win, doc, gaId, clarityId) {
             if (started) win.gtag('set', pageFields());
             lastPage = key;
             event('page_view', {});
+            metaEvent('PageView');
         },
         ecommerce(name, products) {
             const items = ecommerceItems(products);
-            return event(name, { currency: 'EGP', value: items.reduce((sum, item) => sum + item.price * item.quantity, 0), items });
+            const value = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const gaSent = event(name, { currency: 'EGP', value, items });
+            const metaName = { view_item: 'ViewContent', add_to_cart: 'AddToCart', begin_checkout: 'InitiateCheckout' }[name];
+            const metaSent = metaName ? metaEvent(metaName, metaFields(items, value)) : false;
+            return gaSent || metaSent;
         },
         purchase(order, products) {
             if (effectiveConsent() !== true || !order?.orderId || !Number.isFinite(Number(order.total))) return;
@@ -152,13 +190,24 @@ export function createAnalytics(win, doc, gaId, clarityId) {
                 const stored = JSON.parse(win.localStorage.getItem(PURCHASE_KEY) || '[]');
                 if (Array.isArray(stored)) saved = stored;
             } catch { /* In-memory and GA transaction ID deduplication still apply. */ }
-            if (sentPurchases.has(id) || saved.includes(id)) return;
-            if (!event('purchase', { transaction_id: id, currency: 'EGP', value: Number(order.total), items: ecommerceItems(products) })) return;
-            sentPurchases.add(id);
-            try { win.localStorage.setItem(PURCHASE_KEY, JSON.stringify([...saved, id])); } catch { /* Tracking must never interrupt checkout. */ }
+            if (!sentPurchases.has(id) && !saved.includes(id) &&
+                event('purchase', { transaction_id: id, currency: 'EGP', value: Number(order.total), items: ecommerceItems(products) })) {
+                sentPurchases.add(id);
+                try { win.localStorage.setItem(PURCHASE_KEY, JSON.stringify([...saved, id])); } catch { /* Tracking must never interrupt checkout. */ }
+            }
+            let metaSaved = [];
+            try {
+                const stored = JSON.parse(win.localStorage.getItem(META_PURCHASE_KEY) || '[]');
+                if (Array.isArray(stored)) metaSaved = stored;
+            } catch { /* In-memory deduplication still applies. */ }
+            if (!sentMetaPurchases.has(id) && !metaSaved.includes(id) &&
+                metaEvent('Purchase', metaFields(ecommerceItems(products), Number(order.total)), `purchase-${id}`)) {
+                sentMetaPurchases.add(id);
+                try { win.localStorage.setItem(META_PURCHASE_KEY, JSON.stringify([...metaSaved, id])); } catch { /* Optional analytics. */ }
+            }
         },
     };
 }
 
 export const analytics = createAnalytics(window, document,
-    import.meta.env.VITE_GA_MEASUREMENT_ID, import.meta.env.VITE_CLARITY_PROJECT_ID);
+    import.meta.env.VITE_GA_MEASUREMENT_ID, import.meta.env.VITE_CLARITY_PROJECT_ID, import.meta.env.VITE_META_PIXEL_ID);

@@ -6,15 +6,20 @@ import { readFile } from 'node:fs/promises';
 const source = (await readFile(new URL('../src/lib/analytics.js', import.meta.url), 'utf8'))
     .split('export const analytics =')[0];
 const { createAnalytics } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
-function setup() {
+function setup(gaId = 'G-TEST', clarityId = 'clarity-test', metaId) {
     const stored = new Map();
     const scripts = [];
+    const pixels = [];
     const win = {
         localStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) },
         location: { pathname: '/shop', origin: 'https://shop.example', search: '?email=private@example.com', hash: '#private', reload() {} },
     };
-    const doc = { getElementById: id => scripts.find(s => s.id === id), createElement: () => ({}), head: { appendChild: s => scripts.push(s) } };
-    return { win, scripts, analytics: createAnalytics(win, doc, 'G-TEST', 'clarity-test'), doc };
+    const doc = { getElementById: id => scripts.find(s => s.id === id), createElement: tag => {
+        const element = {};
+        if (tag === 'img') pixels.push(element);
+        return element;
+    }, head: { appendChild: s => scripts.push(s) } };
+    return { win, scripts, pixels, analytics: createAnalytics(win, doc, gaId, clarityId, metaId), doc };
 }
 const product = { id: 'product-1', price: 250, quantity: 2, email: 'never-send@example.com', name: 'Unneeded name' };
 const events = win => (win.dataLayer || []).filter(args => args[0] === 'event').map(args => [args[1], args[2]]);
@@ -27,6 +32,80 @@ test('no scripts or events before consent or after rejection', () => {
     analytics.purchase({ orderId: 'saved', total: 500 }, [product]);
     assert.equal(scripts.length, 0);
     assert.deepEqual(events(win), []);
+});
+
+test('Meta-only configuration respects consent, SPA deduplication, and withdrawal', () => {
+    const { analytics, win, pixels, scripts } = setup('', '', '12345');
+    assert.equal(analytics.isConfigured(), true);
+    analytics.pageView('first');
+    analytics.ecommerce('add_to_cart', [product]);
+    assert.equal(pixels.length, 0);
+    analytics.setConsent(true);
+    analytics.pageView('first');
+    analytics.pageView('first');
+    win.location.pathname = '/bag';
+    analytics.pageView('second');
+    win.location.pathname = '/admin/orders';
+    analytics.pageView('admin');
+    analytics.ecommerce('add_to_cart', [product]);
+    assert.equal(pixels.length, 2);
+    assert.equal(new URL(pixels[0].src).searchParams.get('ev'), 'PageView');
+    assert.equal(new URL(pixels[0].src).searchParams.get('dl'), 'https://shop.example/shop');
+    assert.equal(scripts.length, 0);
+    win.location.pathname = '/shop';
+    analytics.setConsent(false);
+    analytics.ecommerce('add_to_cart', [product]);
+    analytics.purchase({ orderId: 'saved', total: 500 }, [product]);
+    assert.equal(pixels.length, 2);
+});
+
+test('Meta ecommerce uses only approved metrics and purchase deduplicates separately from GA', () => {
+    const { analytics, win, doc, pixels } = setup('G-TEST', '', '12345');
+    analytics.setConsent(true);
+    for (const name of ['view_item', 'add_to_cart', 'begin_checkout']) {
+        assert.equal(analytics.ecommerce(name, [product]), true);
+    }
+    analytics.ecommerce('remove_from_cart', [product]);
+    analytics.purchase({}, [product]);
+    analytics.purchase({ orderId: 'invalid', total: 'invalid' }, [product]);
+    assert.equal(pixels.length, 3);
+    // A historical GA purchase must not suppress a newly configured Meta pixel.
+    win.localStorage.setItem('from-london-tracked-orders-v1', JSON.stringify(['saved']));
+    const order = { orderId: 'saved', total: 550, email: 'never-send@example.com' };
+    analytics.purchase(order, [product]);
+    analytics.purchase(order, [product]);
+    createAnalytics(win, doc, '', '', '12345').purchase(order, [product]);
+    assert.equal(pixels.length, 4);
+    assert.deepEqual(pixels.map(p => new URL(p.src).searchParams.get('ev')), ['ViewContent', 'AddToCart', 'InitiateCheckout', 'Purchase']);
+    for (const pixel of pixels) {
+        const params = new URL(pixel.src).searchParams;
+        assert.equal(params.get('id'), '12345');
+        assert.equal(params.get('cd[currency]'), 'EGP');
+        assert.equal(params.get('cd[num_items]'), '2');
+        assert.deepEqual(JSON.parse(params.get('cd[contents]')), [{ id: 'product-1', quantity: 2, item_price: 250 }]);
+        assert.deepEqual(JSON.parse(params.get('cd[content_ids]')), ['product-1']);
+        assert.equal(pixel.referrerPolicy, 'no-referrer');
+        assert.equal(params.get('rl'), '');
+        assert.equal(decodeURIComponent(pixel.src).includes('private'), false);
+        assert.equal(decodeURIComponent(pixel.src).includes('never-send'), false);
+    }
+    assert.equal(new URL(pixels[3].src).searchParams.get('cd[value]'), '550');
+    assert.equal(new URL(pixels[3].src).searchParams.get('eid'), 'purchase-saved');
+    assert.equal(events(win).length, 4);
+});
+
+test('Meta respects browser opt-out and blocked requests cannot break shopping', () => {
+    const { win, doc, pixels } = setup('', '', '12345');
+    win.navigator = { doNotTrack: '1' };
+    const optedOut = createAnalytics(win, doc, '', '', '12345');
+    optedOut.setConsent(true);
+    optedOut.ecommerce('add_to_cart', [product]);
+    assert.equal(pixels.length, 0);
+    win.navigator = {};
+    const blocked = createAnalytics(win, { createElement() { throw new Error('Blocked'); } }, '', '', '12345');
+    blocked.setConsent(true);
+    assert.equal(blocked.ecommerce('add_to_cart', [product]), false);
+    assert.doesNotThrow(() => blocked.purchase({ orderId: 'saved', total: 500 }, [product]));
 });
 
 test('SPA page views deduplicate StrictMode and omit URL parameters and admin routes', () => {

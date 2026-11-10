@@ -32,7 +32,7 @@ export default function AnalyticsConsent() {
         <p id="analytics-privacy-description" className="text-xs leading-relaxed">
             {analytics.isPrivacyOptOut()
                 ? 'Your browser privacy signal keeps optional analytics off.'
-                : 'We use Google Analytics cookies and Microsoft Clarity for shopping analytics, heatmaps and masked recordings. Customer details are masked. You can change your choice in the footer.'}
+                : 'We use Google Analytics cookies, Microsoft Clarity for heatmaps and masked recordings, and Meta Pixel for shopping and advertising measurement. Customer details are masked and are not sent to Meta. You can change your choice in the footer.'}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
             <button type="button" disabled={analytics.isPrivacyOptOut()} onClick={() => choose(true)} className="rounded border border-gray-400 px-4 py-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Accept</button>
