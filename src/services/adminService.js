@@ -64,11 +64,13 @@ export const adminService = {
         body: JSON.stringify({ status, expectedStatus }),
     }),
     getSettings: () => authFetch('/settings'),
-    async uploadImage(file) {
-        const compressed = await compressProductImage(file);
-        if (compressed.type !== 'image/webp' || compressed.size >= MAX_PRODUCT_IMAGE_BYTES) throw new Error('Compressed images must be WebP and under 100 KB.');
-        const content = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Cannot read compressed image.')); reader.readAsDataURL(compressed); });
-        const result = await authFetch('/products?action=upload', { method: 'POST', body: JSON.stringify({ content, type: compressed.type }) });
-        return { ...result, originalSize: file.size, compressedSize: compressed.size, percentSaved: (1 - compressed.size / file.size) * 100 };
+    async uploadImage(file, { compress = true } = {}) {
+        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) throw new Error('Choose a JPEG, PNG, WebP, or GIF image.');
+        if (!compress && file.size > 3000000) throw new Error('Original images must be 3 MB or smaller.');
+        const compressed = compress ? await compressProductImage(file) : file;
+        if (compress && (compressed.type !== 'image/webp' || compressed.size >= MAX_PRODUCT_IMAGE_BYTES)) throw new Error('Compressed images must be WebP and under 100 KB.');
+        const content = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Cannot read image.')); reader.readAsDataURL(compressed); });
+        const result = await authFetch('/products?action=upload', { method: 'POST', body: JSON.stringify({ content, type: compressed.type, compress }) });
+        return { ...result, wasCompressed: compress, originalSize: file.size, compressedSize: compressed.size, percentSaved: (1 - compressed.size / file.size) * 100 };
     },
 };

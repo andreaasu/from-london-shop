@@ -15,13 +15,20 @@ export default async function handler(req) {
             return json(data);
         }
         if (req.method === 'POST' && url.searchParams.get('action') === 'upload') {
-            const { content, type } = await req.json();
-            if (type !== 'image/webp' || typeof content !== 'string' || content.length > 133336) throw fail('Upload a compressed WebP image under 100 KB.');
+            const { content, type, compress = true } = await req.json();
+            const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+            if (typeof compress !== 'boolean') throw fail('Invalid compression option.');
+            const limit = compress ? 99999 : 3000000;
+            if (!Object.hasOwn(extensions, type) || (compress && type !== 'image/webp') || typeof content !== 'string' || content.length > 4 * Math.ceil(limit / 3)) throw fail(compress ? 'Upload a compressed WebP image under 100 KB.' : 'Upload a JPEG, PNG, WebP, or GIF image up to 3 MB.');
             let bytes;
             try { bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0)); } catch { throw fail('Invalid image data.'); }
-            const valid = new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP';
-            if (!valid || bytes.length >= 100000) throw fail('Invalid WebP image or image exceeds the 100 KB limit.');
-            const path = `admin/${crypto.randomUUID()}.webp`;
+            const header = new TextDecoder().decode(bytes.slice(0, 12));
+            const valid = type === 'image/webp' ? header.startsWith('RIFF') && header.slice(8) === 'WEBP'
+                : type === 'image/jpeg' ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+                : type === 'image/png' ? [137, 80, 78, 71, 13, 10, 26, 10].every((value, index) => bytes[index] === value)
+                : header.startsWith('GIF87a') || header.startsWith('GIF89a');
+            if (!valid || bytes.length > limit) throw fail('Invalid image or image exceeds the upload size limit.');
+            const path = `admin/${crypto.randomUUID()}.${extensions[type]}`;
             const { error } = await db.storage.from('product-images').upload(path, bytes, { contentType: type, upsert: false });
             if (error) throw error;
             return json({ url: db.storage.from('product-images').getPublicUrl(path).data.publicUrl }, 201);
