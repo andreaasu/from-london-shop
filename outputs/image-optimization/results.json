@@ -1,0 +1,41 @@
+[
+  {
+    "name": "brownWomen1.png.jpeg",
+    "originalBytes": 163637,
+    "optimizedBytes": 30574,
+    "originalDimensions": [
+      1200,
+      1600
+    ],
+    "optimizedDimensions": [
+      750,
+      1000
+    ]
+  },
+  {
+    "name": "monster1.png",
+    "originalBytes": 56676,
+    "optimizedBytes": 55838,
+    "originalDimensions": [
+      750,
+      1000
+    ],
+    "optimizedDimensions": [
+      750,
+      1000
+    ]
+  },
+  {
+    "name": "dragballz.png",
+    "originalBytes": 1331696,
+    "optimizedBytes": 33262,
+    "originalDimensions": [
+      6000,
+      8000
+    ],
+    "optimizedDimensions": [
+      750,
+      1000
+    ]
+  }
+]

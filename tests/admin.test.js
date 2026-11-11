@@ -35,6 +35,32 @@ test('every admin handler rejects requests before any database/storage operation
     } finally { supabaseAdmin.from = original; }
 });
 
+test('image upload accepts only bounded WebP and uses the existing bucket after authorization', async () => {
+    const originalAuth = supabaseAdmin.auth.getUser, originalFrom = supabaseAdmin.storage.from;
+    const uploaded = [];
+    supabaseAdmin.auth.getUser = async () => ({ data:{ user:{ email:OWNER_EMAIL } } });
+    supabaseAdmin.storage.from = bucket => {
+        assert.equal(bucket, 'product-images');
+        return {
+            async upload(path, bytes, options) { uploaded.push({path,bytes,options}); return {}; },
+            getPublicUrl(path) { return {data:{publicUrl:`https://example.test/${path}`}}; },
+        };
+    };
+    const upload = body => productsHandler(new Request('https://example.test/api/admin/products?action=upload', { method:'POST', headers:{authorization:'Bearer valid','Content-Type':'application/json'}, body:JSON.stringify(body) }));
+    try {
+        for (const body of [{type:'image/jpeg', content:'AAAA', compress:false}, {type:'image/webp',content:'invalid'}, {type:'image/webp',content:'A'.repeat(133336)}]) assert.equal((await upload(body)).status,400);
+        assert.equal(uploaded.length,0);
+        const bytes = new Uint8Array(24);
+        bytes.set(new TextEncoder().encode('RIFF'),0);
+        new DataView(bytes.buffer).setUint32(4,16,true);
+        bytes.set(new TextEncoder().encode('WEBPVP8 '),8);
+        const response = await upload({type:'image/webp',content:Buffer.from(bytes).toString('base64')});
+        assert.equal(response.status,201);
+        assert.match(uploaded[0].path,/^admin\/.*\.webp$/);
+        assert.deepEqual(uploaded[0].options,{contentType:'image/webp',upsert:false});
+    } finally { supabaseAdmin.auth.getUser = originalAuth; supabaseAdmin.storage.from = originalFrom; }
+});
+
 test('product validation prevents mass assignment and derives legacy stock fields', () => {
     const result = productPayload({ name:'Shirt', price:150, stock_by_size:{ S:0, M:3 }, id:'forged', created_at:'forged', in_stock:false }, true);
     assert.deepEqual(result, { name:'Shirt',price:150,stock_by_size:{ S:0,M:3 },in_stock:true,sizes:['S','M'] });

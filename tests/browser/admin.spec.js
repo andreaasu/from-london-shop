@@ -36,6 +36,42 @@ test('dashboard shows real-source calculations and chart without horizontal page
     await page.screenshot({ path:testInfo.outputPath('overview.png'),fullPage:true });
 });
 
+test('product uploads optimize in a worker and continue after an invalid image', async ({ page }) => {
+    await page.goto('/admin/products/new');
+    const png = await page.evaluate(async () => {
+        const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 1600;
+        const ctx = canvas.getContext('2d'); ctx.fillStyle = '#297ab3'; ctx.fillRect(0,0,1200,1600);
+        return canvas.toDataURL('image/png').split(',')[1];
+    });
+    const uploads = [];
+    await page.route('**/api/admin/products?action=upload', async route => {
+        const body = route.request().postDataJSON();
+        expect(body.type).toBe('image/webp');
+        expect(Buffer.from(body.content,'base64').length).toBeLessThan(100000);
+        uploads.push(body);
+        await route.fulfill({json:{url:`data:image/webp;base64,${body.content}`}});
+    });
+    await page.locator('input[type=file]').setInputFiles([
+        {name:'first.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')},
+        {name:'invalid.jpg',mimeType:'image/jpeg',buffer:Buffer.from('invalid')},
+        {name:'second.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')},
+    ]);
+    await expect(page.getByRole('alert')).toContainText('invalid.jpg');
+    expect(uploads).toHaveLength(2);
+    await expect(page.getByText('2/30 images')).toBeVisible();
+    await expect(page.getByText(/first.png:.*KB to/)).toBeVisible();
+    const images = page.getByAltText(/Product image \d/);
+    await expect(images).toHaveCount(2);
+    for (const image of await images.all()) expect(await image.evaluate(img => img.complete && img.naturalWidth === 750 && img.naturalHeight === 1000)).toBe(true);
+    const imageUrl = `data:image/webp;base64,${uploads[0].content}`;
+    await page.route('https://admin-test.supabase.co/rest/v1/products**', route => route.fulfill({json:[{...product, images:[imageUrl]}]}));
+    await page.goto('/shop');
+    await expect(page.locator(`a[href="/product/${product.id}"] img`).first()).toHaveJSProperty('naturalWidth',750);
+    await page.goto(`/product/${product.id}`);
+    await expect(page.getByRole('heading',{name:product.name})).toBeVisible();
+    await expect(page.getByAltText(`${product.name} - View 1`)).toHaveJSProperty('naturalWidth',750);
+});
+
 test('product search, pricing selection and product editor retain saved fields', async ({ page }) => {
     await page.goto('/admin/products');
     await expect(page.getByText('Cotton Oxford Shirt')).toBeVisible();

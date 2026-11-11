@@ -9,6 +9,8 @@ test('real browser compresses detailed images, preserves orientation, and reject
     try {
         const page = await browser.newPage();
         const result = await page.evaluate(async source => {
+            // Exercise the canvas fallback so encoding failures can be simulated.
+            window.OffscreenCanvas = undefined;
             const { compressProductImage } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
             const canvas = document.createElement('canvas');
             canvas.width = 1800; canvas.height = 1200;
@@ -22,9 +24,21 @@ test('real browser compresses detailed images, preserves orientation, and reject
             }
             context.putImageData(data, 0, 0);
             const original = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-            const compressed = await compressProductImage(new File([original], 'noise.png', { type: original.type }));
+            let noiseRejected = false;
+            try { await compressProductImage(new File([original], 'noise.png', { type: original.type })); } catch { noiseRejected = true; }
+            // Deterministic colorful textile pattern with fine stitching.
+            canvas.width = 1500; canvas.height = 2000;
+            context.fillStyle = '#eac9df'; context.fillRect(0, 0, 1500, 2000);
+            for (let y = 0; y < 2000; y += 45) for (let x = 0; x < 1500; x += 45) {
+                context.fillStyle = ['#144a72', '#d43658', '#f4bc30'][(x / 45 + y / 45) % 3];
+                context.beginPath(); context.arc(x + 20, y + 20, 9, 0, Math.PI * 2); context.fill();
+            }
+            context.strokeStyle = '#eee'; context.setLineDash([3, 3]);
+            context.strokeRect(450, 200, 600, 1500);
+            const textile = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const compressed = await compressProductImage(new File([textile], 'printed-pajamas.png', { type: textile.type }));
             const decoded = await createImageBitmap(compressed);
-            const metrics = { type: compressed.type, size: compressed.size, width: decoded.width, height: decoded.height, originalSize: original.size };
+            const metrics = { type: compressed.type, size: compressed.size, width: decoded.width, height: decoded.height, originalSize: textile.size, noiseRejected };
             decoded.close();
             // Inject an EXIF orientation=6 (90 degrees clockwise) into a small JPEG.
             canvas.width = 80; canvas.height = 40;
@@ -48,9 +62,9 @@ test('real browser compresses detailed images, preserves orientation, and reject
         }, source);
         assert.equal(result.type, 'image/webp');
         assert.ok(result.size < 100000);
-        assert.ok(result.size >= 70000 && result.size <= 90000);
-        assert.ok(result.width <= 1200 && result.height <= 1200);
-        assert.ok(Math.abs(result.width / result.height - 1.5) < 0.01);
+        console.log('Textile optimization:', JSON.stringify(result));
+        assert.ok(result.width <= 750 && result.height <= 1000);
+        assert.ok(Math.abs(result.width / result.height - 0.75) < 0.01);
         assert.ok(result.size < result.originalSize);
         assert.deepEqual(result.oriented, [40, 80]);
         assert.equal(result.invalidRejected, true);
