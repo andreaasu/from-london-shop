@@ -1,5 +1,6 @@
 
 import { supabase } from '../lib/supabaseClient';
+import { compressProductImage, MAX_PRODUCT_IMAGE_BYTES } from '../utils/compressProductImage';
 
 const API_BASE = '/api/admin';
 
@@ -64,8 +65,10 @@ export const adminService = {
     }),
     getSettings: () => authFetch('/settings'),
     async uploadImage(file) {
-        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || file.size > 2 * 1024 * 1024) throw new Error('Choose a JPEG, PNG, WebP or GIF under 2 MB.');
-        const content = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(file); });
-        return authFetch('/products?action=upload', { method: 'POST', body: JSON.stringify({ content, type: file.type }) });
+        const compressed = await compressProductImage(file);
+        if (compressed.type !== 'image/webp' || compressed.size >= MAX_PRODUCT_IMAGE_BYTES) throw new Error('Compressed images must be WebP and under 100 KB.');
+        const content = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Cannot read compressed image.')); reader.readAsDataURL(compressed); });
+        const result = await authFetch('/products?action=upload', { method: 'POST', body: JSON.stringify({ content, type: compressed.type }) });
+        return { ...result, originalSize: file.size, compressedSize: compressed.size, percentSaved: (1 - compressed.size / file.size) * 100 };
     },
 };

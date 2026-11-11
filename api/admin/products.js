@@ -16,15 +16,12 @@ export default async function handler(req) {
         }
         if (req.method === 'POST' && url.searchParams.get('action') === 'upload') {
             const { content, type } = await req.json();
-            if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(type) || typeof content !== 'string' || content.length > 2800000) throw fail('Choose a JPEG, PNG, WebP or GIF image under 2 MB.');
+            if (type !== 'image/webp' || typeof content !== 'string' || content.length > 133336) throw fail('Upload a compressed WebP image under 100 KB.');
             let bytes;
             try { bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0)); } catch { throw fail('Invalid image data.'); }
-            const valid = type === 'image/jpeg' ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-                : type === 'image/png' ? [137,80,78,71,13,10,26,10].every((b, i) => bytes[i] === b)
-                : type === 'image/gif' ? new TextDecoder().decode(bytes.slice(0, 6)).match(/^GIF8[79]a$/)
-                : new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP';
-            if (!valid || bytes.length > 2 * 1024 * 1024) throw fail('Invalid or oversized image.');
-            const path = `admin/${crypto.randomUUID()}.${({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[type]}`;
+            const valid = new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP';
+            if (!valid || bytes.length >= 100000) throw fail('Invalid WebP image or image exceeds the 100 KB limit.');
+            const path = `admin/${crypto.randomUUID()}.webp`;
             const { error } = await db.storage.from('product-images').upload(path, bytes, { contentType: type, upsert: false });
             if (error) throw error;
             return json({ url: db.storage.from('product-images').getPublicUrl(path).data.publicUrl }, 201);
