@@ -72,6 +72,29 @@ test('product uploads optimize in a worker and continue after an invalid image',
     await expect(page.getByAltText(`${product.name} - View 1`)).toHaveJSProperty('naturalWidth',750);
 });
 
+test('product upload can keep the original image without compression', async ({ page }) => {
+    await page.goto('/admin/products/new');
+    const original = await page.evaluate(() => {
+        const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 900;
+        const context = canvas.getContext('2d'); context.fillStyle = '#297ab3'; context.fillRect(0, 0, 600, 900);
+        return canvas.toDataURL('image/png').split(',')[1];
+    });
+    const toggle = page.getByRole('switch');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await page.route('**/api/admin/products?action=upload', async route => {
+        const body = route.request().postDataJSON();
+        expect(body.compress).toBe(false);
+        expect(body.type).toBe('image/png');
+        expect(body.content).toBe(original);
+        await route.fulfill({ json: { url: `data:image/png;base64,${body.content}` } });
+    });
+    await page.locator('input[type=file]').setInputFiles({ name: 'original.png', mimeType: 'image/png', buffer: Buffer.from(original, 'base64') });
+    await expect(page.getByText('1/30 images')).toBeVisible();
+    await expect(page.getByAltText('Product image 1')).toHaveJSProperty('naturalWidth', 600);
+    await expect(page.getByText(/original.png \(original\)/)).toBeVisible();
+});
+
 test('product search, pricing selection and product editor retain saved fields', async ({ page }) => {
     await page.goto('/admin/products');
     await expect(page.getByText('Cotton Oxford Shirt')).toBeVisible();
