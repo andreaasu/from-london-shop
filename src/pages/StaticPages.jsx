@@ -1,3 +1,5 @@
+import { Instagram, Facebook, Mail, ArrowUpRight } from 'lucide-react';
+
 // About.jsx
 export function About() {
     return (
@@ -19,16 +21,20 @@ export function Contact() {
     return (
         <div className="container mx-auto px-4 py-12 max-w-2xl">
             <h1 className="text-3xl font-black uppercase mb-6">Contact Us</h1>
-            <div className="space-y-4 mb-8">
-                <p><strong>Email:</strong> <a href="mailto:storefromlondon@gmail.com" className="underline text-brand-blue">storefromlondon@gmail.com</a></p>
+            <p className="text-gray-600 mb-8">Have a question about sizing or your order? Send us a message wherever you prefer.</p>
+            <div className="space-y-3">
+                {[
+                    { label: 'Message us on Instagram', detail: '@therancystore', href: 'https://ig.me/m/therancystore', icon: Instagram },
+                    { label: 'Message us on Facebook', detail: 'Chat with From London on Messenger', href: 'https://m.me/100071128491885', icon: Facebook },
+                    { label: 'Email us', detail: 'storefromlondon@gmail.com', href: 'mailto:storefromlondon@gmail.com', icon: Mail },
+                ].map(({ label, detail, href, icon: Icon }) => (
+                    <a key={href} href={href} {...(href.startsWith('https:') ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="group flex items-center gap-4 rounded-xl border border-gray-200 p-5 hover:border-black hover:bg-gray-50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                        <Icon size={24} className="shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 flex-1"><span className="block font-bold">{label}</span><span className="block text-sm text-gray-600 break-words mt-1">{detail}</span></span>
+                        <ArrowUpRight size={20} className="shrink-0 text-gray-400 group-hover:text-black" aria-hidden="true" />
+                    </a>
+                ))}
             </div>
-
-            {/* <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); alert('Message sent!'); }}>
-                <input placeholder="Your Name" className="w-full border p-3 rounded" required />
-                <input placeholder="Your Email" type="email" className="w-full border p-3 rounded" required />
-                <textarea placeholder="Message" rows="4" className="w-full border p-3 rounded" required></textarea>
-                <button className="bg-black text-white px-8 py-3 font-bold uppercase hover:bg-gray-800">Send Message</button>
-            </form> */}
         </div>
     );
 }

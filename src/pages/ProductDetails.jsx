@@ -8,6 +8,7 @@ import { useWishlist } from "../context/WishlistContext";
 import { formatCurrency } from "../utils/formatCurrency";
 import { sortSizes } from "../utils/sortSizes";
 import ProductGallery from "../components/features/ProductGallery";
+import SizeChart from "../components/features/SizeChart";
 
 export default function ProductDetails() {
     const { id } = useParams();
@@ -198,7 +199,7 @@ function ProductDetailsView({ id }) {
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-sm font-bold">Size</label>
-                                <Link to="/contact" className="text-sm underline text-gray-600 hover:text-black">Need sizing help?</Link>
+                                <SizeChart product={product} />
                             </div>
 
                             {safe.sizes.length === 0 ? (

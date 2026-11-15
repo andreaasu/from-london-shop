@@ -63,6 +63,7 @@ export default async function handler(req) {
                 }
             }
             const { data, error } = await query.select().maybeSingle();
+            if (error && 'is_visible' in payload && (error.code === '42703' || error.code === 'PGRST204')) throw fail('Product visibility needs database setup. Apply migration 202611150001_product_visibility.sql, then retry.', 409);
             if (error) throw error;
             if (!data) throw fail('Stock changed or the product was removed. Refresh before saving again.', 409);
             return json(data, req.method === 'POST' ? 201 : 200);

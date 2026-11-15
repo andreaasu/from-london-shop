@@ -89,6 +89,37 @@ test('product search, pricing selection and product editor retain saved fields',
     await expect(page.getByLabel('Selling price (EGP)')).toHaveValue('250');
 });
 
+test('products jump to a numbered position and toggle storefront visibility', async ({ page }) => {
+    const catalogue = Array.from({ length: 35 }, (_, i) => ({ ...product, id: `position-${i}`, name: `Pyjamas ${i}`, display_order: i + 1, is_visible: true }));
+    const updates = [];
+    await page.route('**/api/admin/products**', async route => {
+        if (route.request().method() === 'PUT') {
+            const id = new URL(route.request().url()).searchParams.get('id');
+            const patch = route.request().postDataJSON();
+            updates.push({ id, patch });
+            const target = catalogue.find(item => item.id === id);
+            Object.assign(target, patch);
+            return route.fulfill({ json: target });
+        }
+        return route.fulfill({ json: catalogue });
+    });
+    await page.goto('/admin/products');
+    await page.getByLabel('Category', { exact: true }).selectOption('men');
+    await page.getByLabel('Position for Pyjamas 0', { exact: true }).fill('30');
+    await page.getByRole('row').filter({ has: page.getByLabel('Position for Pyjamas 0', { exact: true }) }).getByRole('button', { name: 'Move', exact: true }).click();
+    await page.getByRole('button', { name: 'Save order', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Display order saved.' })).toBeVisible();
+    expect(catalogue.find(item => item.id === 'position-0').display_order).toBe(30);
+    expect(catalogue.find(item => item.id === 'position-30').display_order).toBe(31);
+    expect(updates.every(({ patch }) => Object.keys(patch).join() === 'display_order')).toBe(true);
+    await page.getByRole('button', { name: 'Hide Pyjamas 1 from site', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Show Pyjamas 1 on site', exact: true })).toBeVisible();
+    expect(catalogue.find(item => item.id === 'position-1').is_visible).toBe(false);
+    await page.getByRole('button', { name: 'Show Pyjamas 1 on site', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Hide Pyjamas 1 from site', exact: true })).toBeVisible();
+    expect(catalogue.find(item => item.id === 'position-1').is_visible).toBe(true);
+});
+
 test('order detail uses saved unit prices and confirms status changes', async ({ page }) => {
     await page.goto('/admin/orders');
     await page.getByRole('button',{ name:'View order',exact:true }).click();

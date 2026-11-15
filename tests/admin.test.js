@@ -68,6 +68,12 @@ test('product validation prevents mass assignment and derives legacy stock field
     for (const body of [{ price:-1 },{ price:NaN },{ price:'12' },{ stock_by_size:{ M:-1 } },{ stock_by_size:{ M:1.5 } },{ stock_by_size:[] },{ images:['javascript:alert(1)'] },null]) assert.throws(() => productPayload(body));
 });
 
+test('product visibility accepts only explicit booleans', () => {
+    assert.deepEqual(productPayload({ is_visible: false }), { is_visible: false });
+    assert.deepEqual(productPayload({ is_visible: true }), { is_visible: true });
+    for (const is_visible of ['false', 0, 1, null]) assert.throws(() => productPayload({ is_visible }));
+});
+
 test('paging continues when database row limit is lower than requested size', async () => {
     const records = Array.from({ length:7 },(_,i) => ({ id:i }));
     const offsets = [];

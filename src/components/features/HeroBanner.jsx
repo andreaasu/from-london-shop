@@ -21,16 +21,16 @@ export default function HeroBanner() {
                 </p>
                 <div className="flex flex-wrap gap-3">
                     <Link
-                        to="/shop"
+                        to="/shop?gender=women"
                         className="bg-white text-black px-8 py-3 font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors"
                     >
-                        Shop Winter
+                        View Women
                     </Link>
                     <Link
-                        to="/shop"
+                        to="/shop?gender=men"
                         className="border-2 border-white text-white px-8 py-3 font-bold uppercase tracking-wider hover:bg-white hover:text-black transition-colors"
                     >
-                        View All
+                        View Men
                     </Link>
                 </div>
             </div>
