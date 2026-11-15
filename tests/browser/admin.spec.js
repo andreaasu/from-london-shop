@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'browser-test-service-key';
 const { OWNER_EMAIL } = await import('../../api/_utils/auth.js');
@@ -95,6 +96,25 @@ test('product upload can keep the original image without compression', async ({ 
     await expect(page.getByText(/original.png \(original\)/)).toBeVisible();
 });
 
+for (const compress of [true, false]) {
+    test(`AVIF product upload with compression ${compress ? 'on' : 'off'}`, async ({ page }) => {
+        const bytes = readFileSync(new URL('../fixtures/product.avif', import.meta.url));
+        await page.goto('/admin/products/new');
+        if (!compress) await page.getByRole('switch').click();
+        await expect(page.locator('input[type=file]')).toHaveAttribute('accept', /image\/avif/);
+        await page.route('**/api/admin/products?action=upload', async route => {
+            const body = route.request().postDataJSON();
+            expect(body.compress).toBe(compress);
+            expect(body.type).toBe(compress ? 'image/webp' : 'image/avif');
+            if (!compress) expect(body.content).toBe(bytes.toString('base64'));
+            await route.fulfill({ json: { url: `data:${body.type};base64,${body.content}` } });
+        });
+        await page.locator('input[type=file]').setInputFiles({ name: 'product.avif', mimeType: 'image/avif', buffer: bytes });
+        await expect(page.getByText('1/30 images')).toBeVisible();
+        await expect(page.getByAltText('Product image 1')).toHaveJSProperty('naturalWidth', 600);
+    });
+}
+
 test('product search, pricing selection and product editor retain saved fields', async ({ page }) => {
     await page.goto('/admin/products');
     await expect(page.getByText('Cotton Oxford Shirt')).toBeVisible();
@@ -141,6 +161,29 @@ test('products jump to a numbered position and toggle storefront visibility', as
     await page.getByRole('button', { name: 'Show Pyjamas 1 on site', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Hide Pyjamas 1 from site', exact: true })).toBeVisible();
     expect(catalogue.find(item => item.id === 'position-1').is_visible).toBe(true);
+});
+
+test('admin Back restores product filters, table page and scroll', async ({ page }) => {
+    const catalogue = Array.from({ length: 50 }, (_, i) => ({ ...product, id: `return-${i}`, name: `Return pyjamas ${i}`, display_order: i + 1 }));
+    await page.route('**/api/admin/products**', route => {
+        const id = new URL(route.request().url()).searchParams.get('id');
+        return route.fulfill({ json: id ? catalogue.find(p => p.id === id) : catalogue });
+    });
+    await page.goto('/admin/products');
+    await page.getByLabel('Category', { exact: true }).selectOption('men');
+    await page.getByLabel('Search products').fill('Return pyjamas');
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(page.getByText('Page 2 of 3', { exact: false })).toBeVisible();
+    const target = page.getByRole('link', { name: 'Edit Return pyjamas 30', exact: true });
+    await target.scrollIntoViewIfNeeded();
+    const scroll = await page.evaluate(() => window.scrollY);
+    await target.click();
+    await expect(page.getByLabel('Product name')).toHaveValue('Return pyjamas 30');
+    await page.goBack();
+    await expect(page.getByLabel('Category', { exact: true })).toHaveValue('men');
+    await expect(page.getByLabel('Search products')).toHaveValue('Return pyjamas');
+    await expect(page.getByText('Page 2 of 3', { exact: false })).toBeVisible();
+    await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - scroll)).toBeLessThan(10);
 });
 
 test('order detail uses saved unit prices and confirms status changes', async ({ page }) => {

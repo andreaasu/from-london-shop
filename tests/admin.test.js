@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { allRows, productPayload, storedStatus } from '../api/_utils/admin.js';
 import { dashboardStats, customerHistory, stockTotal, cairoDay } from '../src/utils/admin.js';
 
@@ -82,6 +83,15 @@ test('original image uploads preserve bytes and enforce format and size limits',
         assert.equal((await upload({ compress: false, type: 'image/png', content: 'A'.repeat(4000004) })).status, 400);
         assert.equal((await upload({ type: 'image/png', content })).status, 400);
         assert.equal(uploaded.length, 1);
+        const avif = readFileSync(new URL('./fixtures/product.avif', import.meta.url));
+        assert.equal((await upload({ compress: false, type: 'image/avif', content: avif.toString('base64') })).status, 201);
+        assert.match(uploaded[1].path, /\.avif$/);
+        assert.equal(Buffer.compare(Buffer.from(uploaded[1].bytes), avif), 0);
+        assert.equal(uploaded[1].options.contentType, 'image/avif');
+        assert.equal((await upload({ compress: false, type: 'image/avif', content })).status, 400);
+        const heic = Buffer.from(avif);
+        for (let i = 8; i < heic.readUInt32BE(0); i += 4) if (['avif', 'avis'].includes(heic.toString('ascii', i, i + 4))) heic.write('heic', i);
+        assert.equal((await upload({ compress: false, type: 'image/avif', content: heic.toString('base64') })).status, 400);
     } finally { supabaseAdmin.auth.getUser = originalAuth; supabaseAdmin.storage.from = originalFrom; }
 });
 

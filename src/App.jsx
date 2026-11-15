@@ -1,4 +1,5 @@
 import AnalyticsConsent from "./components/common/AnalyticsConsent";
+import { ScrollToTop } from './components/layout/ScrollToTop';
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
 import ProductDetails from "./pages/ProductDetails";
@@ -53,6 +54,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <ScrollToTop />
       <AuthProvider>
         <FilterProvider>
           <WishlistProvider>

@@ -1,3 +1,4 @@
+import { useSessionState } from '../../hooks/useSessionState';
 import { useEffect, useRef, useState } from 'react';
 import { X, RefreshCw, PackageOpen } from 'lucide-react';
 import { statusKey } from '../../utils/admin';
@@ -40,8 +41,8 @@ export function Modal({ title, children, onClose, wide = false }) {
 export function ConfirmDialog({ title, description, onConfirm, onClose, busy, error, destructive = false }) {
     return <Modal title={title} onClose={busy ? () => {} : onClose}><p className="admin-muted mb-6">{description}</p>{error && <p className="admin-alert" role="alert">{error}</p>}<div className="admin-actions justify-end"><button className="admin-button" disabled={busy} onClick={onClose}>Cancel</button><button disabled={busy} className={`admin-button ${destructive ? 'button-danger' : 'button-primary'}`} onClick={onConfirm}>{busy ? 'Saving…' : 'Confirm'}</button></div></Modal>;
 }
-export function PagedTable({ rows, columns, renderRow, emptyTitle }) {
-    const [page, setPage] = useState(1);
+export function PagedTable({ rows, columns, renderRow, emptyTitle, storageKey }) {
+    const [page, setPage] = useSessionState(storageKey, 1);
     const pages = Math.max(1, Math.ceil(rows.length / 20));
     const current = Math.min(page, pages);
     return <div className="admin-panel overflow-hidden"><div className="admin-table-scroll"><table className="admin-table"><thead><tr>{columns.map(column => <th key={column}>{column}</th>)}</tr></thead><tbody>{rows.slice((current - 1) * 20, current * 20).map(renderRow)}</tbody></table></div>{!rows.length && <EmptyState title={emptyTitle}/>}<footer className="admin-table-footer"><span>{rows.length} records · Page {current} of {pages}</span><div className="admin-actions"><button className="admin-button" disabled={current <= 1} onClick={() => setPage(current - 1)}>Previous</button><button className="admin-button" disabled={current >= pages} onClick={() => setPage(current + 1)}>Next</button></div></footer></div>;

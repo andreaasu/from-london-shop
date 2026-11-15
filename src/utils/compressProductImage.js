@@ -5,7 +5,7 @@ const MIN_QUALITY = 0.72;
 const MAX_QUALITY = 0.85;
 
 export async function compressProductImage(file) {
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file?.type)) throw new Error('Choose a JPEG, PNG, WebP or GIF image.');
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(file?.type)) throw new Error('Choose a JPEG, PNG, WebP, GIF or AVIF image.');
     if (file.size > 30_000_000) throw new Error('Choose an image smaller than 30 MB.');
     let image;
     try { image = await createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'default' }); }

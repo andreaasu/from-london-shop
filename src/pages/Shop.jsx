@@ -1,16 +1,17 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { Filter, X } from 'lucide-react';
 import ProductCard from '../components/features/ProductCard';
 import FilterSidebar from '../components/features/FilterSidebar';
 import MobileFilterDrawer from '../components/features/MobileFilterDrawer';
 import SortDropdown from '../components/features/SortDropdown';
-import { useFilters } from '../context/FilterContext';
+import { useFilters, readShopFilters } from '../context/FilterContext';
 import { productService } from '../services/productService';
 import { sortSizes } from '../utils/sortSizes';
 import { compareProductOrder } from '../utils/productOrder';
 
 export default function Shop() {
+    const location = useLocation();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -34,8 +35,10 @@ export default function Shop() {
         return () => { active = false; };
     }, [retry]);
 
-    // Sync URL params to Context on mount/update - STRICT SYNC
+    // Restore this history entry; fresh category links start from their URL filters.
     useEffect(() => {
+        const saved = readShopFilters(location.key);
+        if (saved) { setAllFilters(saved); return; }
         const gender = searchParams.get('gender');
         const category = searchParams.get('category');
         const collection = searchParams.get('collection');
@@ -50,13 +53,13 @@ export default function Shop() {
             type: [],
             size: [],
             color: [],
-            priceRange: [0, 5000], // Ensure max matches context default
+            priceRange: [0, 5000],
             inStockOnly: false,
-            sort: 'newest' // Persist or reset sort? Usually reset on new nav, or keep. Let's reset to default for consistency with "default to empty".
+            sort: 'newest'
         };
 
         setAllFilters(nextFilters);
-    }, [searchParams, setAllFilters]);
+    }, [searchParams, setAllFilters, location.key]);
 
     // Helper to check if a product matches filters (except size)
     const matchesBaseFilters = useCallback((product) => {
@@ -140,6 +143,7 @@ export default function Shop() {
 
     // 2. Cleanup selected sizes that are no longer available
     useEffect(() => {
+        if (loading || error) return;
         const selectedSizes = Array.isArray(filters.size) ? filters.size : [];
         if (selectedSizes.length > 0) {
             const validSizes = selectedSizes.filter(s => availableSizes.includes(s));
@@ -148,7 +152,7 @@ export default function Shop() {
                 updateFilter('size', validSizes);
             }
         }
-    }, [availableSizes, filters.size, updateFilter]);
+    }, [availableSizes, filters.size, updateFilter, loading, error]);
 
 
     // 3. Final Filtered Products (including size filter)

@@ -66,7 +66,7 @@ export const adminService = {
     }),
     getSettings: () => authFetch('/settings'),
     async uploadImage(file, { compress = true } = {}) {
-        if (!compress && (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) || !file.size || file.size > 3000000)) throw new Error('Choose a JPEG, PNG, WebP or GIF image up to 3 MB.');
+        if (!compress && (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(file.type) || !file.size || file.size > 3000000)) throw new Error('Choose a JPEG, PNG, WebP, GIF or AVIF image up to 3 MB.');
         const compressed = compress ? await optimizeProductImage(file) : file;
         if (compress && (compressed.type !== 'image/webp' || !compressed.size || compressed.size >= MAX_PRODUCT_IMAGE_BYTES)) throw new Error('Optimized images must be WebP and under 100 KB.');
         const content = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = () => reject(new Error('Cannot read image.')); reader.readAsDataURL(compressed); });
