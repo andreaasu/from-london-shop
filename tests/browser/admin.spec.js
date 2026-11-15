@@ -163,6 +163,40 @@ test('products jump to a numbered position and toggle storefront visibility', as
     expect(catalogue.find(item => item.id === 'position-1').is_visible).toBe(true);
 });
 
+test('bulk visibility includes all selected pages and keeps failures selected for retry', async ({ page }) => {
+    const catalogue = Array.from({ length: 25 }, (_, i) => ({ ...product, id: `bulk-${i}`, name: `Bulk pyjamas ${i}`, is_visible: true }));
+    let failOnce = true;
+    const writes = [];
+    await page.route('**/api/admin/products**', async route => {
+        if (route.request().method() === 'PUT') {
+            const id = new URL(route.request().url()).searchParams.get('id');
+            const patch = route.request().postDataJSON();
+            writes.push({ id, patch });
+            if (id === 'bulk-4' && failOnce) { failOnce = false; return route.fulfill({ status: 500, json: { error: 'Temporary error, retry' } }); }
+            const target = catalogue.find(item => item.id === id);
+            Object.assign(target, patch);
+            return route.fulfill({ json: target });
+        }
+        return route.fulfill({ json: catalogue });
+    });
+    await page.goto('/admin/products');
+    await page.getByLabel('Select all 25 filtered products').check();
+    await page.getByRole('button', { name: 'Hide selected', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: '24 product(s) hidden from the site.' })).toBeVisible();
+    await expect(page.getByRole('alert')).toContainText('Temporary error, retry');
+    await expect(page.getByText('1 selected', { exact: true })).toBeVisible();
+    expect(catalogue.filter(item => item.is_visible === false)).toHaveLength(24);
+    await page.getByRole('button', { name: 'Hide selected', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: '1 product(s) hidden from the site.' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Hide selected', exact: true })).toHaveCount(0);
+    await page.getByLabel('Select all 25 filtered products').check();
+    await page.getByRole('button', { name: 'Show selected', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: '25 product(s) shown on the site.' })).toBeVisible();
+    expect(catalogue.every(item => item.is_visible)).toBe(true);
+    expect(writes).toHaveLength(51);
+    expect(writes.every(({ patch }) => Object.keys(patch).join() === 'is_visible')).toBe(true);
+});
+
 test('admin Back restores product filters, table page and scroll', async ({ page }) => {
     const catalogue = Array.from({ length: 50 }, (_, i) => ({ ...product, id: `return-${i}`, name: `Return pyjamas ${i}`, display_order: i + 1 }));
     await page.route('**/api/admin/products**', route => {
