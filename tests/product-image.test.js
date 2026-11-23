@@ -51,7 +51,7 @@ test('real browser compresses detailed images, preserves orientation, and reject
             try { await compressProductImage(new File(['invalid'], 'bad.jpg', { type: 'image/jpeg' })); }
             catch { metrics.invalidRejected = true; }
             const nativeToBlob = HTMLCanvasElement.prototype.toBlob;
-            HTMLCanvasElement.prototype.toBlob = function (callback) { callback(new Blob([new Uint8Array(100001)], { type: 'image/webp' })); };
+            HTMLCanvasElement.prototype.toBlob = function (callback) { callback(new Blob([new Uint8Array(150001)], { type: 'image/webp' })); };
             try { await compressProductImage(new File([original], 'too-big.png', { type: 'image/png' })); }
             catch { metrics.oversizedRejected = true; }
             HTMLCanvasElement.prototype.toBlob = function (callback) { callback(new Blob(['png'], { type: 'image/png' })); };
@@ -61,7 +61,7 @@ test('real browser compresses detailed images, preserves orientation, and reject
             return metrics;
         }, source);
         assert.equal(result.type, 'image/webp');
-        assert.ok(result.size < 100000);
+        assert.ok(result.size <= 150000);
         console.log('Textile optimization:', JSON.stringify(result));
         assert.ok(result.width <= 750 && result.height <= 1000);
         assert.ok(Math.abs(result.width / result.height - 0.75) < 0.01);

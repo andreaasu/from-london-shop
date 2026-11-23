@@ -48,7 +48,7 @@ test('product uploads optimize in a worker and continue after an invalid image',
     await page.route('**/api/admin/products?action=upload', async route => {
         const body = route.request().postDataJSON();
         expect(body.type).toBe('image/webp');
-        expect(Buffer.from(body.content,'base64').length).toBeLessThan(100000);
+        expect(Buffer.from(body.content,'base64').length).toBeLessThanOrEqual(150000);
         uploads.push(body);
         await route.fulfill({json:{url:`data:image/webp;base64,${body.content}`}});
     });

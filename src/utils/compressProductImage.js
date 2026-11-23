@@ -1,5 +1,5 @@
 // Decimal KB; the API independently enforces this boundary.
-export const MAX_PRODUCT_IMAGE_BYTES = 100_000;
+export const MAX_PRODUCT_IMAGE_BYTES = 150_000;
 const PREFERRED_BYTES = 80_000;
 const MIN_QUALITY = 0.72;
 const MAX_QUALITY = 0.85;
@@ -36,7 +36,7 @@ export async function compressProductImage(file) {
             const high = await encode(MAX_QUALITY);
             if (high.size <= PREFERRED_BYTES) return high;
             const low = await encode(MIN_QUALITY);
-            const budget = low.size <= PREFERRED_BYTES ? PREFERRED_BYTES : MAX_PRODUCT_IMAGE_BYTES - 1;
+            const budget = low.size <= PREFERRED_BYTES ? PREFERRED_BYTES : MAX_PRODUCT_IMAGE_BYTES;
             if (low.size > budget) continue;
             if (high.size <= budget) return high;
             let best = low, lower = MIN_QUALITY, upper = MAX_QUALITY;
@@ -48,7 +48,7 @@ export async function compressProductImage(file) {
             }
             return best;
         }
-        throw new Error(`Cannot optimize ${file.name || 'image'} below 100 KB without losing too much detail. Choose a cleaner source image. Nothing was uploaded.`);
+        throw new Error(`Cannot optimize ${file.name || 'image'} to 150 KB or less without losing too much detail. Choose a cleaner source image. Nothing was uploaded.`);
     } finally {
         image.close();
         if (canvas) canvas.width = canvas.height = 0;

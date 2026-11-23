@@ -1,6 +1,7 @@
 import { verifyAdmin } from '../_utils/auth.js';
 import { supabaseAdmin as db } from '../_utils/supabase.js';
 import { allRows, productPayload, fail, json, errorResponse } from '../_utils/admin.js';
+import { MAX_PRODUCT_IMAGE_BYTES } from '../../src/utils/compressProductImage.js';
 export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
@@ -18,7 +19,7 @@ export default async function handler(req) {
             const { content, type, compress = true } = await req.json();
             const original = compress === false;
             const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
-            if (typeof compress !== 'boolean' || !Object.hasOwn(extensions, type) || (!original && type !== 'image/webp') || typeof content !== 'string' || content.length > (original ? 4000000 : 133332)) throw fail(original ? 'Upload a JPEG, PNG, WebP, GIF or AVIF image up to 3 MB.' : 'Upload an optimized WebP image under 100 KB.');
+            if (typeof compress !== 'boolean' || !Object.hasOwn(extensions, type) || (!original && type !== 'image/webp') || typeof content !== 'string' || content.length > (original ? 4000000 : 4 * Math.ceil(MAX_PRODUCT_IMAGE_BYTES / 3))) throw fail(original ? 'Upload a JPEG, PNG, WebP, GIF or AVIF image up to 3 MB.' : 'Upload an optimized WebP image up to 150 KB.');
             let bytes;
             try { bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0)); } catch { throw fail('Invalid image data.'); }
             const header = new TextDecoder().decode(bytes.slice(0, 12));
@@ -38,7 +39,7 @@ export default async function handler(req) {
                 : type === 'image/png' ? bytes.length > 8 && [137,80,78,71,13,10,26,10].every((value, index) => bytes[index] === value)
                 : type === 'image/avif' ? validAvif
                 : bytes.length > 6 && /^(GIF87a|GIF89a)/.test(header);
-            if (!valid || (original ? bytes.length > 3000000 : bytes.length >= 100000)) throw fail(original ? 'Invalid image or image exceeds the 3 MB limit.' : 'Invalid WebP image or image exceeds the 100 KB limit.');
+            if (!valid || (original ? bytes.length > 3000000 : bytes.length > MAX_PRODUCT_IMAGE_BYTES)) throw fail(original ? 'Invalid image or image exceeds the 3 MB limit.' : 'Invalid WebP image or image exceeds the 150 KB limit.');
             const path = `admin/${crypto.randomUUID()}.${extensions[type]}`;
             const { error } = await db.storage.from('product-images').upload(path, bytes, { contentType: type, upsert: false });
             if (error) throw error;
