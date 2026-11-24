@@ -51,9 +51,10 @@ test('image upload accepts only bounded WebP and uses the existing bucket after 
     try {
         for (const body of [{type:'image/jpeg', content:'AAAA', compress:false}, {type:'image/webp',content:'invalid'}, {type:'image/webp',content:'A'.repeat(133336)}]) assert.equal((await upload(body)).status,400);
         assert.equal(uploaded.length,0);
-        const bytes = new Uint8Array(24);
+        // The RIFF size starts with C2 80, which UTF-8 decodes as one character.
+        const bytes = new Uint8Array(32_970);
         bytes.set(new TextEncoder().encode('RIFF'),0);
-        new DataView(bytes.buffer).setUint32(4,16,true);
+        new DataView(bytes.buffer).setUint32(4,bytes.length - 8,true);
         bytes.set(new TextEncoder().encode('WEBPVP8 '),8);
         const response = await upload({type:'image/webp',content:Buffer.from(bytes).toString('base64')});
         assert.equal(response.status,201);

@@ -22,23 +22,26 @@ export default async function handler(req) {
             if (typeof compress !== 'boolean' || !Object.hasOwn(extensions, type) || (!original && type !== 'image/webp') || typeof content !== 'string' || content.length > (original ? 4000000 : 4 * Math.ceil(MAX_PRODUCT_IMAGE_BYTES / 3))) throw fail(original ? 'Upload a JPEG, PNG, WebP, GIF or AVIF image up to 3 MB.' : 'Upload an optimized WebP image up to 150 KB.');
             let bytes;
             try { bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0)); } catch { throw fail('Invalid image data.'); }
-            const header = new TextDecoder().decode(bytes.slice(0, 12));
+            const decoder = new TextDecoder();
             let validAvif = false;
-            if (type === 'image/avif' && bytes.length >= 16 && header.slice(4, 8) === 'ftyp') {
+            if (type === 'image/avif' && bytes.length >= 16 && decoder.decode(bytes.subarray(4, 8)) === 'ftyp') {
                 const boxSize = new DataView(bytes.buffer).getUint32(0);
                 if (boxSize >= 16 && boxSize <= bytes.length && boxSize % 4 === 0) {
                     for (let offset = 8; offset + 4 <= boxSize; offset += 4) {
                         if (offset === 12) continue; // Minor version is not a brand.
-                        const brand = new TextDecoder().decode(bytes.slice(offset, offset + 4));
+                        const brand = decoder.decode(bytes.subarray(offset, offset + 4));
                         if (brand === 'avif' || brand === 'avis') validAvif = true;
                     }
                 }
             }
-            const valid = type === 'image/webp' ? header.startsWith('RIFF') && header.slice(8) === 'WEBP' && bytes.length > 20 && new DataView(bytes.buffer).getUint32(4, true) === bytes.length - 8
+            const valid = type === 'image/webp' ? bytes.length > 20
+                    && decoder.decode(bytes.subarray(0, 4)) === 'RIFF'
+                    && decoder.decode(bytes.subarray(8, 12)) === 'WEBP'
+                    && new DataView(bytes.buffer).getUint32(4, true) === bytes.length - 8
                 : type === 'image/jpeg' ? bytes.length > 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
                 : type === 'image/png' ? bytes.length > 8 && [137,80,78,71,13,10,26,10].every((value, index) => bytes[index] === value)
                 : type === 'image/avif' ? validAvif
-                : bytes.length > 6 && /^(GIF87a|GIF89a)/.test(header);
+                : bytes.length > 6 && /^(GIF87a|GIF89a)$/.test(decoder.decode(bytes.subarray(0, 6)));
             if (!valid || (original ? bytes.length > 3000000 : bytes.length > MAX_PRODUCT_IMAGE_BYTES)) throw fail(original ? 'Invalid image or image exceeds the 3 MB limit.' : 'Invalid WebP image or image exceeds the 150 KB limit.');
             const path = `admin/${crypto.randomUUID()}.${extensions[type]}`;
             const { error } = await db.storage.from('product-images').upload(path, bytes, { contentType: type, upsert: false });
